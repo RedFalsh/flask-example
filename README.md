@@ -3,6 +3,7 @@
 
 # 项目目录结构：
 
+```
 config.py
 requirements.txt
 runserver.py
@@ -17,7 +18,7 @@ app/
     static/
     templates/
     
-
+```
     
     
     
