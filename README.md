@@ -45,7 +45,9 @@ app/
 4、初始化数据库表格
 
 `python manager.py db init`
+
 `python manager.py db migrate`
+
 `python manager.py db upgrade`
 
 5、运行
