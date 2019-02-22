@@ -2,7 +2,7 @@
 一个机遇flask的项目基本设计框架
 
 # 项目目录结构：
-```
+
 config.py
 requirements.txt
 runserver.py
@@ -17,7 +17,7 @@ app/
     static/
     templates/
     
-    ```
+
     
     
     
@@ -29,13 +29,15 @@ app/
 
 1. git下载
 
-`git clone`
+`git clone https://github.com/RedFalsh/flask-example.git`
 
 2. 进入项目目录
 
 `cd flask-example`
 
-3. 安装依赖包
+3. 安装依赖包, 建议在python虚拟机下安装 
+
+参考：https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432712108300322c61f256c74803b43bfd65c6f8d0d0000
 
 `pip install -r requirement.txt`
 
