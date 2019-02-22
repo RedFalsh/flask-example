@@ -38,7 +38,7 @@ app/
 
 3. 安装依赖包, 建议在python虚拟机下安装
 
-参考：https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432712108300322c61f256c74803b43bfd65c6f8d0d0000
+参考：[廖雪峰-python虚拟机安装](https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432712108300322c61f256c74803b43bfd65c6f8d0d0000)
 
 `pip install -r requirement.txt`
 
