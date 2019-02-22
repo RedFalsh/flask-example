@@ -55,4 +55,9 @@ app/
 `python runserver.py`
 
 # 项目中添加了后台管理flask-admin
-浏览器访问：`localhost:5000/admin` 即可看到后台管理界面
+
+浏览器访问: `localhost:5000/admin` 即可看到后台管理界面
+
+# 项目采用Blueprint管理蓝图
+
+参考: http://flask.pocoo.org/docs/1.0/tutorial/blog/
