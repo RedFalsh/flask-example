@@ -4,19 +4,18 @@
 # 项目目录结构：
 
 ```
-config.py
-requirements.txt
-runserver.py
-config.py
-manager.py
+config.py # 配置文件
+requirements.txt # 依赖包
+runserver.py  # app运行脚本
+manager.py # manager管理数据库
 app/
-    __init__.py
-    admin/__init__.py
-    views/index.py
-    models.py
-    forms.py
-    static/
-    templates/
+    __init__.py  # app初始化
+    admin/__init__.py # admin后台管理
+    views/index.py # 视图文件夹
+    models.py # 数据库model
+    forms.py # 表格
+    static/ # 静态文件css, js
+    templates/ # 网页html文件
     
 ```
     
