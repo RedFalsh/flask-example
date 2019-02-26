@@ -1,5 +1,20 @@
 # flask-example
-一个机遇flask的项目基本设计框架
+一个flask的项目基本设计框架, 可快速部署flask项目
+
+# 项目包含
+
+## - 项目蓝图管理：`flask-blueprint`
+
+参考：http://flask.pocoo.org/docs/1.0/tutorial/blog/
+
+- manager运行项目和数据库初始化管理：`flask-script`
+
+参考: https://github.com/smurfix/flask-script
+
+- 后台管理插件: `flask-admin`
+
+参考: https://github.com/flask-admin/flask-admin
+
 
 # 项目目录结构：
 
@@ -38,7 +53,7 @@ app/
 
 3. 安装依赖包, 建议在python虚拟机下安装
 
-参考：[廖雪峰-python虚拟机安装](https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432712108300322c61f256c74803b43bfd65c6f8d0d0000)
+参考：https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432712108300322c61f256c74803b43bfd65c6f8d0d0000
 
 `pip install -r requirement.txt`
 
@@ -54,10 +69,3 @@ app/
 
 `python runserver.py`
 
-# 项目中添加了后台管理flask-admin
-
-浏览器访问: `localhost:5000/admin` 即可看到后台管理界面
-
-# 项目采用Blueprint管理蓝图
-
-参考: http://flask.pocoo.org/docs/1.0/tutorial/blog/
