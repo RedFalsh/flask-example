@@ -13,7 +13,12 @@ app = create_app('development')
 migrate = Migrate(app, db)
 manager = Manager(app)
 
-manager.add_command('runserver', Server())
+manager.add_command('runserver', Server(
+                                    host='0.0.0.0',
+                                    port=app.config['SERVER_PORT'],
+                                    use_debugger = True,
+                                    use_reloader = True,
+                                        ))
 manager.add_command('db', MigrateCommand)
 
 @manager.shell

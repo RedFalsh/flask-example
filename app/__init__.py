@@ -4,16 +4,19 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
-# app初始化
-myapp = Flask(__name__)
+# app初始化,
+# instance_relative_config 设置config文件可从Instance文件中查找
+myapp = Flask(__name__, instance_relative_config=True)
 
 # 数据库管理
 db = SQLAlchemy()
 
 def create_app(config_name):
     # 导入配置文件
-    from config import config
-    myapp.config.from_object(config[config_name])
+    import os
+    myapp.config.from_pyfile('base_setting.py')
+    if "ops_config" in os.environ:
+        myapp.config.from_pyfile('%s_setting.py'%os.environ['ops_config'])
 
     # 后台管理数据库 admin
     from app.admin import admin
@@ -23,7 +26,9 @@ def create_app(config_name):
     db.init_app(myapp)
 
     from app.views.home import home
-    myapp.register_blueprint(home)
+    from app.views.user import route_user
+    myapp.register_blueprint(home, url_prefix='/')
+    myapp.register_blueprint(route_user, url_prefix='/user')
 
     return myapp
 
