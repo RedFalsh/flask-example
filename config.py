@@ -14,11 +14,23 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class Config(object):
     DEBUG = False
     TESTING = False
+    SERVER_PORT = 5000
     # 打开跨站请求
     CSRF_ENABLED = True
     # SECRET_KEY = 'this-really-needs-to-be-changed'
     SECRET_KEY = 'Sm9obiBTY2hyb20ga2lja3MgYXNz'
     STRIPE_API_KEY = 'SmFjb2IgS2FwbGFuLU1vc3MgaXMgYSBoZXJv'
+
+    MINA_APP = {
+        'appid':'wx544d45f6ce6ae390',
+        'appkey':'3f87b3a3ba73d334995e575e0cc13295',
+        'paykey':'xxxxxxxxxxxxxx换自己的',
+        'mch_id':'xxxxxxxxxxxx换自己的',
+        'callback_url':'/api/order/callback'
+    }
+    API_IGNORE_URLS = [
+        "^/api"
+    ]
 
 class ProductionConfig(Config):
     DEBUG = False

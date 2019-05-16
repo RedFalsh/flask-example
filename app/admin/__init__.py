@@ -10,20 +10,21 @@ from app.model import User, db
 admin = Admin(name='后台管理', template_mode = 'bootstrap3')
 
 class UserModelAdmin(ModelView):
-    can_create = False  # disable model create
-    can_edit = False  # disable model edit
-    can_delete = False  # disable model delete
+    can_create = True # disable model create
+    can_edit = True # disable model edit
+    can_delete = True # disable model delete
     can_view_details = False  # 显示细节
 
     # 可姓名、电话进行搜索
-    column_searchable_list = ['name', 'telephone']
+    # column_searchable_list = ['name']
     # 按名字过滤
-    column_filters = ['name']
+    # column_filters = ['name']
 
     column_labels = {
-        'name':'姓名',
-        'password':'密码',
-        'telephone':'电话',
+        'nickname':'姓名',
+        'email':'邮箱',
+        'login_pwd':'密码',
+        'login_salt':'密钥',
     }
 
 # 将新建的UserModelAdmin添加到admin中

@@ -3,36 +3,45 @@
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from config import config
+import os
 
 # app初始化,
 # instance_relative_config 设置config文件可从Instance文件中查找
-myapp = Flask(__name__, instance_relative_config=True)
+app = Flask(__name__, instance_relative_config=True)
+
+# 配置文件导入
+app.config.from_object(config['development'])
 
 # 数据库管理
 db = SQLAlchemy()
+# 数据库配置初始化
+db.init_app(app)
 
-def create_app(config_name):
-    # 导入配置文件
-    import os
-    myapp.config.from_pyfile('base_setting.py')
-    if "ops_config" in os.environ:
-        myapp.config.from_pyfile('%s_setting.py'%os.environ['ops_config'])
+# 后台管理数据库 admin
+from app.admin import admin
+admin.init_app(app)
 
-    # 后台管理数据库 admin
-    from app.admin import admin
-    admin.init_app(myapp)
+'''
+统一拦截处理和统一错误处理
+'''
+from app.interceptor.ApiInterceptor import  *
 
-    # 数据库配置初始化
-    db.init_app(myapp)
+'''
+蓝图功能，对所有的url进行蓝图功能配置
+'''
 
-    from app.views.home import home
-    from app.views.user import route_user
-    myapp.register_blueprint(home, url_prefix='/')
-    myapp.register_blueprint(route_user, url_prefix='/user')
+from app.views.home import home
+from app.views.user import route_user
+from app.views.member.Member import member
+from app.views.api import route_api
 
-    return myapp
+app.register_blueprint(home, url_prefix='/')
+app.register_blueprint(member, url_prefix='/member')
+app.register_blueprint(route_api, url_prefix='/api')
 
-if __name__ == '__main__':
-    app = create_app('development')
-    app.run()
+
+# if __name__ == '__main__':
+    # app = create_app('development')
+    # app.run()
 
