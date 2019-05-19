@@ -18,9 +18,13 @@ db = SQLAlchemy()
 # 数据库配置初始化
 db.init_app(app)
 
-# 后台管理数据库 admin
+# 后面需要调用db的，导入时需要放在db初始化完成之后
 from app.admin import admin
+from flask_mqtt import Mqtt
+
+mqtt = Mqtt()
 admin.init_app(app)
+mqtt.init_app(app)
 
 '''
 统一拦截处理和统一错误处理
@@ -35,11 +39,12 @@ from app.views.home import home
 from app.views.user import route_user
 from app.views.member.Member import member
 from app.views.api import route_api
+from app.views.mqtt import route_mqtt
 
 app.register_blueprint(home, url_prefix='/')
 app.register_blueprint(member, url_prefix='/member')
 app.register_blueprint(route_api, url_prefix='/api')
-
+app.register_blueprint(route_mqtt, url_prefix='/mqtt')
 
 # if __name__ == '__main__':
     # app = create_app('development')

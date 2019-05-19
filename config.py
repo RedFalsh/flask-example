@@ -21,6 +21,13 @@ class Config(object):
     SECRET_KEY = 'Sm9obiBTY2hyb20ga2lja3MgYXNz'
     STRIPE_API_KEY = 'SmFjb2IgS2FwbGFuLU1vc3MgaXMgYSBoZXJv'
 
+    MQTT_BROKER_URL = 'localhost'
+    MQTT_BROKER_PORT = 1883
+    MQTT_USERNAME = 'admin'
+    MQTT_PASSWORD = 'public'
+    MQTT_KEEPALIVE = 5
+    MQTT_TLS_ENABLED = False
+
     MINA_APP = {
         'appid':'wx544d45f6ce6ae390',
         'appkey':'3f87b3a3ba73d334995e575e0cc13295',

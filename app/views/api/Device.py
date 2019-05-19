@@ -58,7 +58,7 @@ def deviceAdd():
 
     return jsonify( resp )
 
-@route_api.route("/device/list")
+@route_api.route("/device/list",methods = [ "GET","POST" ])
 def deviceList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
     auth_cookie = request.headers.get("Authorization")
@@ -91,12 +91,16 @@ def deviceList():
 
     return jsonify(resp)
 
-@route_api.route("/device/info")
+@route_api.route("/device/info",methods = [ "GET","POST" ])
 def deviceInfo():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
-
     req = request.values
+
     sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
+        resp['msg'] = "need sn"
+        return jsonify(resp)
 
     device_info = Device.query.filter_by( sn = sn ).first()
     if not device_info:
@@ -117,6 +121,28 @@ def deviceInfo():
     }
 
     resp['data'] = data
+
+    return jsonify(resp)
+
+@route_api.route("/device/delete",methods = [ "GET","POST" ])
+def deviceDelete():
+    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
+    req = request.values
+
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
+        resp['msg'] = "need sn"
+        return jsonify(resp)
+
+    device_info = Device.query.filter_by( sn = sn ).first()
+    if not device_info:
+        resp['code'] = -1
+        resp['msg'] = 'device not exist!'
+        return jsonify(resp)
+
+    db.session.delete(device_info)
+    db.session.commit()
 
     return jsonify(resp)
 
@@ -236,7 +262,7 @@ def deviceTimeDelete():
 
     return jsonify( resp )
 
-@route_api.route("/device/time/list")
+@route_api.route("/device/time/list",methods = [ "GET","POST" ])
 def deviceTimeList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
 
