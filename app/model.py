@@ -94,10 +94,14 @@ class DeviceTime(db.Model):
 
     id           = db.Column(db.Integer, primary_key=True)
     device_id    = db.Column(db.Integer)
+    alive        = db.Column(db.Integer)
     type         = db.Column(db.Integer)
     customize    = db.Column(db.String(30))
+    period       = db.Column(db.String(30))
     open_time    = db.Column(db.DateTime)
     close_time   = db.Column(db.DateTime)
+    open__time    = db.Column(db.String(10))
+    close__time   = db.Column(db.String(10))
     updated_time = db.Column(db.DateTime)
     created_time = db.Column(db.DateTime)
 

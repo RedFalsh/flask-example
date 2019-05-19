@@ -31,6 +31,14 @@ class Config(object):
     API_IGNORE_URLS = [
         "^/api"
     ]
+    DEVICE_TIME_TYPE_MAPPING = {
+        "0":"订单关闭",
+        "1":"支付成功",
+        "-8":"待支付",
+        "-7":"待发货",
+        "-6":"待确认",
+        "-5":"待评价"
+    }
 
 class ProductionConfig(Config):
     DEBUG = False
