@@ -66,13 +66,10 @@ def deviceList():
     auth_id = auth_info[1]
 
     member_info = Member.query.filter_by( id = auth_id ).first()
-    print(member_info)
-    #  device_list = Device.query.filter_by( member_id = member_info.id ).first()
     device_list = db.session.query(Device).\
                         filter(Member.id==auth_id).\
                         filter(Member.id==Device.member_id).\
                         all()
-    print(device_list)
     data = []
     for d in device_list:
         data.append({
@@ -132,6 +129,29 @@ def deviceDelete():
     sn = req['sn'] if 'sn' in req else ''
     if not sn or len( sn ) < 1:
         resp['code'] = -1
+        resp['msg'] = "需要设备编码"
+        return jsonify(resp)
+
+    device_info = Device.query.filter_by( sn = sn ).first()
+    if not device_info:
+        resp['code'] = -1
+        resp['msg'] = '设备不存在'
+        return jsonify(resp)
+
+    db.session.delete(device_info)
+    db.session.commit()
+
+    return jsonify(resp)
+
+@route_api.route("/device/edit/<name>")
+def deviceEditName(name):
+    print(name)
+    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
+    req = request.values
+
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
         resp['msg'] = "need sn"
         return jsonify(resp)
 
@@ -140,9 +160,6 @@ def deviceDelete():
         resp['code'] = -1
         resp['msg'] = 'device not exist!'
         return jsonify(resp)
-
-    db.session.delete(device_info)
-    db.session.commit()
 
     return jsonify(resp)
 
@@ -155,29 +172,32 @@ def deviceTimeAdd():
 
     if not sn or len( sn ) < 1:
         resp['code'] = -1
-        resp['msg'] = "need sn"
+        resp['msg'] = "设备序列号错误~~"
         return jsonify(resp)
 
     device_info = Device.query.filter_by( sn = sn ).first()
     if not device_info:
         resp['code'] = -1
-        resp['msg'] = "device is not exist"
+        resp['msg'] = "当前设备不存在~~"
         return jsonify(resp)
 
 
-    _type = req['type'] if 'type' in req else ''
+    _type = int(req['type']) if 'type' in req else 0
+    alive = int(req['alive']) if 'alive' in req else 0
     period = req['period'] if 'period' in req else ''
     open_time = req['open_time'] if 'open_time' in req else ''
     close_time = req['close_time'] if 'close_time' in req else ''
-
     # 添加定时任务
     model_time = DeviceTime()
     model_time.device_id = device_info.id
-    model_time.alive = 1
+    model_time.alive = alive
     model_time.type = _type
     model_time.period = period
-    model_time.open__time = open_time
-    model_time.close__time = close_time
+    if _type == 1:
+        model_time.open_flag = 0
+        model_time.close_flag = 0
+    model_time.open_time = open_time
+    model_time.close_time = close_time
     model_time.updated_time = model_time.created_time = getCurrentDate()
     db.session.add(model_time)
     db.session.commit()
@@ -193,14 +213,10 @@ def deviceTimeEdit():
 
     if not sn or len( sn ) < 1:
         resp['code'] = -1
-        resp['msg'] = "need sn"
+        resp['msg'] = "设备序列号错误~~"
         return jsonify(resp)
 
     id = req['id'] if 'id' in req else 0
-    if id == 0:
-        resp['code'] = -1
-        resp['msg'] = "need id"
-        return jsonify(resp)
 
     time_info = db.session.query(DeviceTime).\
                         filter(Device.sn==sn).\
@@ -209,20 +225,29 @@ def deviceTimeEdit():
                         first()
     if not time_info:
         resp['code'] = -1
-        resp['msg'] = "device time is not exist"
+        resp['msg'] = "当前设备定时任务不存在,请刷新后再试~~"
         return jsonify(resp)
 
-    _type = req['type'] if 'type' in req else ''
+    _type = int(req['type']) if 'type' in req else 0
+    alive = int(req['alive']) if 'alive' in req else 0
     period = req['period'] if 'period' in req else ''
     open_time = req['open_time'] if 'open_time' in req else ''
     close_time = req['close_time'] if 'close_time' in req else ''
-
     # 添加定时任务
-    time_info.alive = 1
-    time_info.type = _type
-    time_info.period = period
-    time_info.open__time = open_time
-    time_info.close__time = close_time
+    if alive:
+        time_info.alive = alive
+    # 类型：执行一次、每天、周末、工作日、自定义
+    if _type:
+        time_info.type = _type
+        if _type == 1: # 执行一次的情况
+            time_info.open_flag = 0
+            time_info.close_flag = 0
+    if period:
+        time_info.period = period
+    if open_time:
+        time_info.open_time = open_time
+    if close_time:
+        time_info.close_time = close_time
     time_info.updated_time = getCurrentDate()
     # db.session.update(time_info)
     db.session.commit()
@@ -286,8 +311,8 @@ def deviceTimeList():
             'type':d.type,
             'alive':d.alive,
             'period':d.period,
-            'open_time':d.open__time,
-            'close_time':d.close__time
+            'open_time':d.open_time,
+            'close_time':d.close_time
         })
 
     resp['data'] = data

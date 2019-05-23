@@ -3,6 +3,7 @@
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_mqtt import Mqtt
 from config import config
 import os
 
@@ -11,7 +12,7 @@ import os
 app = Flask(__name__, instance_relative_config=True)
 
 # 配置文件导入
-app.config.from_object(config['development'])
+app.config.from_object(config['production'])
 
 # 数据库管理
 db = SQLAlchemy()
@@ -20,10 +21,10 @@ db.init_app(app)
 
 # 后面需要调用db的，导入时需要放在db初始化完成之后
 from app.admin import admin
-from flask_mqtt import Mqtt
+
+admin.init_app(app)
 
 mqtt = Mqtt()
-admin.init_app(app)
 mqtt.init_app(app)
 
 '''
@@ -39,12 +40,13 @@ from app.views.home import home
 from app.views.user import route_user
 from app.views.member.Member import member
 from app.views.api import route_api
-from app.views.mqtt import route_mqtt
+from app.views.mqttc import route_mqtt
 
 app.register_blueprint(home, url_prefix='/')
 app.register_blueprint(member, url_prefix='/member')
 app.register_blueprint(route_api, url_prefix='/api')
 app.register_blueprint(route_mqtt, url_prefix='/mqtt')
+
 
 # if __name__ == '__main__':
     # app = create_app('development')

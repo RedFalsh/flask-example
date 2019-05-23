@@ -5,7 +5,7 @@
 from flask import Blueprint
 route_mqtt = Blueprint( 'mqtt_page',__name__ )
 
-from app.views.mqtt.Client import *
+from app.views.mqttc.Client import *
 
 @route_mqtt.route("/")
 def index():

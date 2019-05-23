@@ -96,12 +96,31 @@ class DeviceTime(db.Model):
     device_id    = db.Column(db.Integer)
     alive        = db.Column(db.Integer)
     type         = db.Column(db.Integer)
-    customize    = db.Column(db.String(30))
     period       = db.Column(db.String(30))
-    open_time    = db.Column(db.DateTime)
-    close_time   = db.Column(db.DateTime)
-    open__time    = db.Column(db.String(10))
-    close__time   = db.Column(db.String(10))
+    open_time    = db.Column(db.String(20))
+    open_flag    = db.Column(db.Integer)
+    close_time   = db.Column(db.String(20))
+    close_flag   = db.Column(db.Integer)
     updated_time = db.Column(db.DateTime)
     created_time = db.Column(db.DateTime)
+
+class DeviceOperateLog(db.Model):
+    __tablename__ = 'device_operate_log'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer)
+    code       = db.Column(db.Integer)
+    msg       = db.Column(db.String(20))
+    source    = db.Column(db.String(50))
+    time      = db.Column(db.DateTime)
+
+class DeviceControl(db.Model):
+    __tablename__ = 'device_control'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer)
+    cmd       = db.Column(db.Integer)
+    cmd_hex   = db.Column(db.String(10))
+    msg       = db.Column(db.String(10))
+    time      = db.Column(db.DateTime)
 
