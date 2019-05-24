@@ -7,14 +7,17 @@ import json
 import datetime
 
 from app.common.libs.Helper import getCurrentDate
+from app.common.libs.MqttService import CMD
 
 from app import db
 from app.model import Member
 from app.model import Device
 from app.model import DeviceMqtt
 from app.model import DeviceTime
+from app.model import DeviceOperateLog
 
 
+# 设备相关api
 @route_api.route("/device/add",methods = [ "GET","POST" ])
 def deviceAdd():
     resp = { 'code':200 ,'msg':'ok~','data':{} }
@@ -143,26 +146,8 @@ def deviceDelete():
 
     return jsonify(resp)
 
-@route_api.route("/device/edit/<name>")
-def deviceEditName(name):
-    print(name)
-    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
-    req = request.values
 
-    sn = req['sn'] if 'sn' in req else ''
-    if not sn or len( sn ) < 1:
-        resp['code'] = -1
-        resp['msg'] = "need sn"
-        return jsonify(resp)
-
-    device_info = Device.query.filter_by( sn = sn ).first()
-    if not device_info:
-        resp['code'] = -1
-        resp['msg'] = 'device not exist!'
-        return jsonify(resp)
-
-    return jsonify(resp)
-
+# 设备定时任务相关api
 @route_api.route("/device/time/add",methods = [ "GET","POST" ])
 def deviceTimeAdd():
     resp = { 'code':200 ,'msg':'ok~','data':{} }
@@ -290,9 +275,7 @@ def deviceTimeDelete():
 @route_api.route("/device/time/list",methods = [ "GET","POST" ])
 def deviceTimeList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
-
     req = request.values
-
     sn = req['sn'] if 'sn' in req else ''
     if not sn or len( sn ) < 1:
         resp['code'] = -1
@@ -315,6 +298,49 @@ def deviceTimeList():
             'close_time':d.close_time
         })
 
+    resp['data'] = data
+
+    return jsonify(resp)
+
+
+@route_api.route("/device/operatelog/list",methods = [ "GET","POST" ])
+def deviceOperateLogList():
+    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
+    req = request.values
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
+        resp['msg'] = "need sn"
+        return jsonify(resp)
+    log_list = db.session.query(DeviceOperateLog).\
+                        filter(Device.sn==sn).\
+                        filter(DeviceOperateLog.device_id==Device.id).\
+                        order_by(DeviceOperateLog.time.desc()).\
+                        all()
+
+    data = []
+    for l in log_list:
+        ok = False
+        if l.code == CMD.TAP_STATUS:
+            if l.msg == '0':
+                l.msg = '关闭'
+                ok = True
+            if l.msg == '1':
+                l.msg = '开启'
+                ok = True
+            if l.msg == '2':
+                l.msg = '半开'
+                ok = True
+        if ok:
+            data.append({
+                'msg':l.msg,
+                'source':l.source,
+                'date':l.time.strftime("%Y-%m-%d"),
+                'time':l.time.strftime("%H:%M"),
+                'month':l.time.strftime("%m"),
+                'day':l.time.strftime("%d"),
+                'week':l.time.strftime("%w"),
+            })
     resp['data'] = data
 
     return jsonify(resp)

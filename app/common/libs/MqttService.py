@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 
-class cmd:
+class CMD:
     TAP_OPEN     = 0xA1
     TAP_CLOSE    = 0xA2
     TAP_STATUS   = 0xA9

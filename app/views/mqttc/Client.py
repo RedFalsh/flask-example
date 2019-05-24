@@ -5,7 +5,7 @@ from app.views.mqttc import route_mqtt
 
 from app import app, mqtt, db
 from app.model import Device,DeviceTime,DeviceOperateLog
-from app.common.libs.MqttService import cmd
+from app.common.libs.MqttService import CMD
 from app.common.libs.Helper import getFormatDate, getCurrentDate
 from app.common.libs.Logging import logger
 
@@ -52,7 +52,7 @@ def handle_mqtt_message(client, userdata, message):
     if res:
         sn = res.group(2)
         connect = res.group(3)
-        resp = {'code':cmd.TAP_ONLINE}
+        resp = {'code':CMD.TAP_ONLINE}
         with app.app_context():
             device_info = Device.query.filter_by( sn=sn ).first()
             if device_info:
@@ -82,7 +82,7 @@ def handle_mqtt_message(client, userdata, message):
             DeviceOperateLogAdd(sn,code,msg,'pub')
 
         # 监听到阀门状态变化
-        if int(code) == cmd.TAP_STATUS:
+        if int(code) == CMD.TAP_STATUS:
             logger.info("阀门状态发生变化:%s"%msg)
             DeviceStatusChanged(sn, int(msg))
 
@@ -118,12 +118,12 @@ def timerTask():
                 if t.type == 1: # 执行一次的任务
                     if t.open_time == time_now:
                         if t.open_flag == 0:
-                            if ControlTap(t.device_id, cmd.TAP_OPEN):
+                            if ControlTap(t.device_id, CMD.TAP_OPEN):
                                 t.open_flag = 1
                                 db.session.commit()
                     if t.close_time == time_now:
                         if t.close_flag == 0:
-                            if ControlTap(t.device_id, cmd.TAP_CLOSE):
+                            if ControlTap(t.device_id, CMD.TAP_CLOSE):
                                 t.close_flag = 1
                                 db.session.commit()
                     if t.open_flag == 1 and t.close_flag == 1:
@@ -134,9 +134,9 @@ def timerTask():
                     period = str(t.period).split(',')
                     if time_week in period:
                         if t.open_time == time_now:
-                            ControlTap(t.device_id, cmd.TAP_OPEN)
+                            ControlTap(t.device_id, CMD.TAP_OPEN)
                         if t.close_time == time_now:
-                            ControlTap(t.device_id, cmd.TAP_CLOSE)
+                            ControlTap(t.device_id, CMD.TAP_CLOSE)
 
 time_thread = threading.Thread(target=timerTask)
 time_thread.setDaemon(True)
