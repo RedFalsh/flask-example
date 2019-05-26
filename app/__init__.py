@@ -3,7 +3,7 @@
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_mqtt import Mqtt
+#  from flask_mqtt import Mqtt
 from config import config
 import os
 
@@ -24,8 +24,8 @@ from app.admin import admin
 
 admin.init_app(app)
 
-mqtt = Mqtt()
-mqtt.init_app(app)
+#  mqtt = Mqtt()
+#  mqtt.init_app(app)
 
 '''
 统一拦截处理和统一错误处理
@@ -40,12 +40,12 @@ from app.views.home import home
 from app.views.user import route_user
 from app.views.member.Member import member
 from app.views.api import route_api
-from app.views.mqttc import route_mqtt
+#  from app.views.mqttc import route_mqtt
 
 app.register_blueprint(home, url_prefix='/')
 app.register_blueprint(member, url_prefix='/member')
 app.register_blueprint(route_api, url_prefix='/api')
-app.register_blueprint(route_mqtt, url_prefix='/mqtt')
+#  app.register_blueprint(route_mqtt, url_prefix='/mqtt')
 
 
 # if __name__ == '__main__':

@@ -24,11 +24,11 @@ class Config(object):
     #登陆的是root用户，要填上自己的密码，MySQL的默认端口是3306，填上之前创建的数据库名test
     #注意:  1、使用pymysql时需要mysql+pymysql才行!!!
     #       2、mysql中首先需要创建test数据库才能用manager.py初始化model中设计的表格
-    SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@localhost:3306/test'
+    SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@localhost:3306/tap'
     #设置这一项是每次请求结束后都会自动提交数据库中的变动
     SQLALCHEMY_TRACK_MODIFICATIONS=True
 
-    MQTT_BROKER_URL = 'localhost'
+    MQTT_BROKER_URL = 'dqtttt.cn'
     MQTT_BROKER_PORT = 1883
     MQTT_USERNAME = 'admin'
     MQTT_PASSWORD = 'public'
