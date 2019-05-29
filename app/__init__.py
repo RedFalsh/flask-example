@@ -12,7 +12,7 @@ import os
 app = Flask(__name__, instance_relative_config=True)
 
 # 配置文件导入
-app.config.from_object(config['production'])
+app.config.from_object(config['development'])
 
 # 数据库管理
 db = SQLAlchemy()

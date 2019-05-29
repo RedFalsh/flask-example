@@ -15,7 +15,6 @@ api认证
 '''
 @app.before_request
 def before_request_api():
-    print("拦截器工作.....")
     api_ignore_urls = app.config['API_IGNORE_URLS']
 
     path = request.path
@@ -44,7 +43,6 @@ def before_request_api():
 def check_member_login():
     auth_cookie = request.headers.get("Authorization")
 
-    print(auth_cookie)
     if auth_cookie is None:
         return False
 

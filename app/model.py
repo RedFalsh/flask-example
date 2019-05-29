@@ -57,19 +57,24 @@ class OauthMemberBind(db.Model):
     updated_time = db.Column(db.DateTime)
     created_time = db.Column(db.DateTime)
 
-
 class Device(db.Model):
     __tablename__ = 'device'
 
     id           = db.Column(db.Integer, primary_key=True)
     member_id    = db.Column(db.Integer)
     name         = db.Column(db.String(30))
+    number       = db.Column(db.String(30))
     sn           = db.Column(db.String(32))
     type         = db.Column(db.String(20))
     img          = db.Column(db.String(200))
+    tag          = db.Column(db.String(30))
     position     = db.Column(db.String(200))
     online       = db.Column(db.Integer)
     status       = db.Column(db.Integer)
+    alias1       = db.Column(db.String(30))
+    alias2       = db.Column(db.String(30))
+    status1      = db.Column(db.Integer)
+    status2      = db.Column(db.Integer)
     sub          = db.Column(db.String(50))
     pub          = db.Column(db.String(50))
     updated_time = db.Column(db.DateTime)
@@ -96,6 +101,7 @@ class DeviceTime(db.Model):
     device_id    = db.Column(db.Integer)
     alive        = db.Column(db.Integer)
     type         = db.Column(db.Integer)
+    switch_num   = db.Column(db.Integer)
     period       = db.Column(db.String(30))
     open_time    = db.Column(db.String(20))
     open_flag    = db.Column(db.Integer)

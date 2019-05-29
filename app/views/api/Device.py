@@ -37,6 +37,7 @@ def deviceAdd():
 
     name = req['name'] if 'name' in req else ''
     _type = req['type'] if 'type' in req else ''
+    number = req['number'] if 'number' in req else ''
 
     dev_info = Device.query.filter_by( sn = sn ).first()
     if dev_info:
@@ -53,8 +54,15 @@ def deviceAdd():
         model_device.name = "阀门"
     else:
         model_device.name = name
+    model_device.position = '未设置'
     model_device.online = 0
     model_device.status = 0
+    model_device.status1 = 0
+    model_device.status2 = 0
+    model_device.alias1 = "阀门1"
+    model_device.alias2 = "阀门2"
+    model_device.sub='/dev/%s/sub'%sn
+    model_device.pub='/dev/%s/pub'%sn
     model_device.updated_time = model_device.created_time = getCurrentDate()
     db.session.add(model_device)
     db.session.commit()
@@ -83,8 +91,12 @@ def deviceList():
             'position':d.position,
             'online':d.online,
             'status':d.status,
-            'sub':'/dev/%s/sub'%d.sn,
-            'pub':'/dev/%s/pub'%d.sn
+            'status1':d.status1,
+            'status2':d.status2,
+            'alias1':d.alias1,
+            'alias2':d.alias2,
+            'sub':d.sub,
+            'pub':d.pub
         })
 
     resp['data'] = data
@@ -124,13 +136,10 @@ def deviceInfo():
 
     return jsonify(resp)
 
-@route_api.route("/device/delete",methods = [ "GET","POST" ])
-def deviceDelete():
+@route_api.route("/device/delete/<string:sn>",methods = [ "GET","POST" ])
+def deviceDelete(sn):
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
-    req = request.values
-
-    sn = req['sn'] if 'sn' in req else ''
-    if not sn or len( sn ) < 1:
+    if not sn:
         resp['code'] = -1
         resp['msg'] = "需要设备编码"
         return jsonify(resp)
