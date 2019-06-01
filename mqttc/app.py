@@ -1,13 +1,91 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-# 配置文件
-from config import config
+import sys
+import getopt
+
+#  from config import config
+import configparser
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"-h-v",["help","version","ini="])
+    if not opts:
+        print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+        sys.exit(2)
+    for opt_name,opt_value in opts:
+        if opt_name in ('-h','--help'):
+            print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+            sys.exit(0)
+        if opt_name in ('-v','--version'):
+            print("v1.01 ")
+            sys.exit(0)
+        if opt_name in ('-i','--ini'):
+            ini_file = opt_value
+            cf = configparser.ConfigParser()
+            cf.read(ini_file)
+            print("timer load file: ", ini_file)
+except getopt.GetoptError:
+    print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+    sys.exit(2)
+
+
+conf = cf['conf']
+
+SQLALCHEMY_DATABASE_URI= conf['SQLALCHEMY_DATABASE_URI']
+
+MQTT_BROKER_URL  = conf['MQTT_BROKER_URL']
+MQTT_BROKER_PORT = int(conf['MQTT_BROKER_PORT'])
+MQTT_CLIENT_ID   = conf['MQTT_CLIENT_ID']
+MQTT_USERNAME    = conf['MQTT_USERNAME']
+MQTT_PASSWORD    = conf['MQTT_PASSWORD']
+MQTT_KEEPALIVE   = int(conf['MQTT_KEEPALIVE'])
+MQTT_TLS_ENABLED = True if conf['MQTT_TLS_ENABLED'].lower() == 'true' else False
+MQTT_SUBCRIBE = [
+    ("$SYS/brokers/emqx@127.0.0.1/clients/#", 0),
+    ("/dev/#", 0),
+]
+
+CMD_TAP_OPEN     = int(conf['CMD_TAP_OPEN'], 16)
+CMD_TAP_CLOSE    = int(conf['CMD_TAP_CLOSE'], 16)
+CMD_TAP_STATUS   = int(conf['CMD_TAP_STATUS'], 16)
+CMD_TAP_ONLINE   = int(conf['CMD_TAP_ONLINE'], 16)
+CMD_TAP_POWER    = int(conf['CMD_TAP_POWER'], 16)
+CMD_TAP_SET_TIME = int(conf['CMD_TAP_SET_TIME'], 16)
+
+LOG_PATH = conf['LOG_PATH']
 
 # 日志文件
 import logging
-logging.basicConfig(level = logging.INFO,format = '[%(asctime)s] - %(levelname)s - %(message)s')
+#  logging.basicConfig(level = logging.INFO,
+                    #  filename=LOG_PATH,
+                    #  filemode='a',
+                    #  format = '[%(asctime)s] - %(levelname)s - %(message)s')
+#  logger = logging.getLogger(__name__)
+
+# 创建一个logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# 创建一个handler，用于写入日志文件
+fh = logging.FileHandler(LOG_PATH)
+fh.setLevel(logging.INFO)
+
+# 再创建一个handler，用于输出到控制台
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+
+# 定义handler的输出格式
+formatter = logging.Formatter('[%(asctime)s][%(filename)s][line: %(lineno)d][%(levelname)s]: %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+# 给logger添加handler
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+# 记录一条日志
+logger.info('starting')
+
 
 # 帮助
 from helper import getCurrentDate, getFormatDate
@@ -29,7 +107,10 @@ import schedule
 
 class MqttClient(object):
 
-    regex = config.REGEX
+    regex = {
+        'connect': re.compile(r'^\$SYS/brokers/(.*?)/clients/([a-zA-Z0-9]{10})/(connected|disconnected)'),
+        'operate': re.compile(r'^/dev/([a-zA-Z0-9]{10})/(sub|pub)')
+    }
 
     def __init__(self):
         self.time_thread = threading.Thread(target=self.timerTask)
@@ -44,16 +125,16 @@ class MqttClient(object):
         """ The callback for when the client receives a CONNACK response from the server.
         """
         # 连接mqtt服务器
-        self.client = mqtt.Client(client_id=config.MQTT_CLIENT_ID)
+        self.client = mqtt.Client(client_id=MQTT_CLIENT_ID)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.connect(config.MQTT_BROKER_URL, config.MQTT_BROKER_PORT, config.MQTT_KEEPALIVE)
+        self.client.connect(MQTT_BROKER_URL, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
         self.client.loop_forever()
 
     def on_connect(self,client, userdata, flags, rc):
         # 此处订阅所有设备的route
         logger.info("Connected with result code "+str(rc))
-        self.client.subscribe(config.MQTT_SUBCRIBE)
+        self.client.subscribe(MQTT_SUBCRIBE)
 
     def on_message(self, client, userdata, msg):
         """ The callback for when a PUBLISH message is received from the server.
@@ -64,12 +145,11 @@ class MqttClient(object):
         logger.info("topic:"+topic)
         logger.info("payload:"+payload)
 
-        cmd = config.CMD
         connect_res = self.regex['connect'].match(topic)
         if connect_res:
             sn = connect_res.group(2)
             connect = connect_res.group(3)
-            resp = {'code': cmd['TAP_ONLINE']}
+            resp = {'code': CMD_TAP_ONLINE}
 
             device_info = session.query(Device).filter_by( sn=sn ).first()
             if device_info:
@@ -100,7 +180,7 @@ class MqttClient(object):
                 self.deviceOperateLogAdd(sn,code,msg,'小程序')
 
             # 监听到阀门状态变化
-            if int(code) == cmd['TAP_STATUS']:
+            if int(code) == CMD_TAP_STATUS:
                 self.deviceStatusChanged(sn, int(msg))
 
     def deviceOperateLogAdd(self, sn, code, msg, source):
@@ -140,7 +220,6 @@ class MqttClient(object):
 
     def timerTaskJob(self):
         logger.info("执行定时任务......")
-        cmd = config.CMD
         # 线程中使用session需要添加一个新的对象来进行执行
         session = Session()
         time_now = getFormatDate(format="%H:%M")
@@ -151,12 +230,12 @@ class MqttClient(object):
             if t.type == 1: # 执行一次的任务
                 if t.open_time == time_now:
                     if t.open_flag == 0:
-                        if self.deviceControlTap(t.device_id, cmd['TAP_OPEN']):
+                        if self.deviceControlTap(t.device_id, CMD_TAP_OPEN):
                             t.open_flag = 1
                             session.commit()
                 if t.close_time == time_now:
                     if t.close_flag == 0:
-                        if self.deviceControlTap(t.device_id, cmd['TAP_CLOSE']):
+                        if self.deviceControlTap(t.device_id, CMD_TAP_CLOSE):
                             t.close_flag = 1
                             session.commit()
                 if t.open_flag == 1 and t.close_flag == 1:
@@ -169,9 +248,9 @@ class MqttClient(object):
                     time_week = '7'
                 if time_week in period:
                     if t.open_time == time_now:
-                        self.deviceControlTap(t.device_id, cmd['TAP_OPEN'])
+                        self.deviceControlTap(t.device_id, CMD_TAP_OPEN)
                     if t.close_time == time_now:
-                        self.deviceControlTap(t.device_id, cmd['TAP_CLOSE'])
+                        self.deviceControlTap(t.device_id, CMD_TAP_CLOSE)
         Session.remove()
 
 

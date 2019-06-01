@@ -50,6 +50,7 @@ def deviceAdd():
     model_device.member_id = member_id
     model_device.sn = sn
     model_device.type = _type
+    model_device.number = number
     if _type == "tap":
         model_device.name = "阀门"
     else:
@@ -57,10 +58,13 @@ def deviceAdd():
     model_device.position = '未设置'
     model_device.online = 0
     model_device.status = 0
-    model_device.status1 = 0
-    model_device.status2 = 0
+
     model_device.alias1 = "阀门1"
+    model_device.status1 = 0
+
     model_device.alias2 = "阀门2"
+    model_device.status2 = 0
+
     model_device.sub='/dev/%s/sub'%sn
     model_device.pub='/dev/%s/pub'%sn
     model_device.updated_time = model_device.created_time = getCurrentDate()
@@ -85,6 +89,7 @@ def deviceList():
     for d in device_list:
         data.append({
             'name':d.name,
+            'number':d.number,
             'sn':d.sn,
             'type':d.type,
             'img':d.img,
@@ -128,6 +133,10 @@ def deviceInfo():
         'position':device_info.position,
         'online':device_info.online,
         'status':device_info.status,
+        'alias1':device_info.alias1,
+        'status1':device_info.status1,
+        'alias2':device_info.alias2,
+        'status2':device_info.status2,
         'sub':'/dev/%s/sub'%device_info.sn,
         'pub':'/dev/%s/pub'%device_info.sn
     }

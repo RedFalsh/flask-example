@@ -70,15 +70,28 @@ class Device(db.Model):
     tag          = db.Column(db.String(30))
     position     = db.Column(db.String(200))
     online       = db.Column(db.Integer)
-    status       = db.Column(db.Integer)
-    alias1       = db.Column(db.String(30))
-    alias2       = db.Column(db.String(30))
-    status1      = db.Column(db.Integer)
-    status2      = db.Column(db.Integer)
     sub          = db.Column(db.String(50))
     pub          = db.Column(db.String(50))
+
+    status       = db.Column(db.Integer)
+
+    alias1       = db.Column(db.String(30))
+    status1      = db.Column(db.Integer)
+
+    alias2       = db.Column(db.String(30))
+    status2      = db.Column(db.Integer)
+
     updated_time = db.Column(db.DateTime)
     created_time = db.Column(db.DateTime)
+
+class DeviceTap(db.Model):
+    __tablename__ = 'device_tap'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    device_id    = db.Column(db.Integer)
+    name         = db.Column(db.String(30))
+    status       = db.Column(db.Integer)
+
 
 class DeviceMqtt(db.Model):
     __tablename__ = 'device_mqtt'
