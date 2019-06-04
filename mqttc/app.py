@@ -41,16 +41,20 @@ MQTT_PASSWORD    = conf['MQTT_PASSWORD']
 MQTT_KEEPALIVE   = int(conf['MQTT_KEEPALIVE'])
 MQTT_TLS_ENABLED = True if conf['MQTT_TLS_ENABLED'].lower() == 'true' else False
 MQTT_SUBCRIBE = [
-    ("$SYS/brokers/emqx@127.0.0.1/clients/#", 0),
+    ("$SYS/brokers/+/clients/#", 0),
     ("/dev/#", 0),
 ]
 
-CMD_TAP_OPEN     = int(conf['CMD_TAP_OPEN'], 16)
-CMD_TAP_CLOSE    = int(conf['CMD_TAP_CLOSE'], 16)
-CMD_TAP_STATUS   = int(conf['CMD_TAP_STATUS'], 16)
-CMD_TAP_ONLINE   = int(conf['CMD_TAP_ONLINE'], 16)
-CMD_TAP_POWER    = int(conf['CMD_TAP_POWER'], 16)
-CMD_TAP_SET_TIME = int(conf['CMD_TAP_SET_TIME'], 16)
+CMD_TAP_OPEN_1   = conf['CMD_TAP_OPEN_1']
+CMD_TAP_CLOSE_1  = conf['CMD_TAP_CLOSE_1']
+
+CMD_TAP_OPEN_2   = conf['CMD_TAP_OPEN_2']
+CMD_TAP_CLOSE_2  = conf['CMD_TAP_CLOSE_2']
+
+CMD_TAP_STATUS_1 = conf['CMD_TAP_STATUS_1']
+CMD_TAP_STATUS_2 = conf['CMD_TAP_STATUS_2']
+
+CMD_TAP_ONLINE   = conf['CMD_TAP_ONLINE']
 
 LOG_PATH = conf['LOG_PATH']
 
@@ -125,7 +129,7 @@ class MqttClient(object):
         """ The callback for when the client receives a CONNACK response from the server.
         """
         # 连接mqtt服务器
-        self.client = mqtt.Client(client_id=MQTT_CLIENT_ID)
+        self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(MQTT_BROKER_URL, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
@@ -149,18 +153,16 @@ class MqttClient(object):
         if connect_res:
             sn = connect_res.group(2)
             connect = connect_res.group(3)
-            resp = {'code': CMD_TAP_ONLINE}
-
             device_info = session.query(Device).filter_by( sn=sn ).first()
             if device_info:
                 if connect == "connected":
                     device_info.online = 1
-                    resp['msg'] = 1
+                    self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 1))
                 if connect == "disconnected":
                     device_info.online = 0
-                    resp['msg'] = 0
+                    self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 0))
                 session.commit()
-                self.client.publish('/dev/%s/pub'%sn, json.dumps(resp))
+        return
 
         operate_res = self.regex['operate'].match(topic)
         if operate_res:
@@ -180,7 +182,7 @@ class MqttClient(object):
                 self.deviceOperateLogAdd(sn,code,msg,'小程序')
 
             # 监听到阀门状态变化
-            if int(code) == CMD_TAP_STATUS:
+            if int(code) == CMD_TAP_STATUS_1:
                 self.deviceStatusChanged(sn, int(msg))
 
     def deviceOperateLogAdd(self, sn, code, msg, source):
@@ -230,12 +232,12 @@ class MqttClient(object):
             if t.type == 1: # 执行一次的任务
                 if t.open_time == time_now:
                     if t.open_flag == 0:
-                        if self.deviceControlTap(t.device_id, CMD_TAP_OPEN):
+                        if self.deviceControlTap(t.device_id, CMD_TAP_OPEN_1):
                             t.open_flag = 1
                             session.commit()
                 if t.close_time == time_now:
                     if t.close_flag == 0:
-                        if self.deviceControlTap(t.device_id, CMD_TAP_CLOSE):
+                        if self.deviceControlTap(t.device_id, CMD_TAP_CLOSE_1):
                             t.close_flag = 1
                             session.commit()
                 if t.open_flag == 1 and t.close_flag == 1:
@@ -248,9 +250,9 @@ class MqttClient(object):
                     time_week = '7'
                 if time_week in period:
                     if t.open_time == time_now:
-                        self.deviceControlTap(t.device_id, CMD_TAP_OPEN)
+                        self.deviceControlTap(t.device_id, CMD_TAP_OPEN_1)
                     if t.close_time == time_now:
-                        self.deviceControlTap(t.device_id, CMD_TAP_CLOSE)
+                        self.deviceControlTap(t.device_id, CMD_TAP_CLOSE_1)
         Session.remove()
 
 
