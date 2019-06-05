@@ -47,17 +47,18 @@ MQTT_SUBCRIBE = [
 
 CMD_TAP_OPEN_1   = conf['CMD_TAP_OPEN_1']
 CMD_TAP_CLOSE_1  = conf['CMD_TAP_CLOSE_1']
-
 CMD_TAP_OPEN_2   = conf['CMD_TAP_OPEN_2']
 CMD_TAP_CLOSE_2  = conf['CMD_TAP_CLOSE_2']
-
 CMD_TAP_STATUS_1 = conf['CMD_TAP_STATUS_1']
 CMD_TAP_STATUS_2 = conf['CMD_TAP_STATUS_2']
-
 CMD_TAP_ONLINE   = conf['CMD_TAP_ONLINE']
 
-LOG_PATH = conf['LOG_PATH']
+CODE_TAP_ALIVE  = conf['CODE_TAP_ALIVE']
+CODE_TAP_STATUS = conf['CODE_TAP_STATUS']
+CODE_TAP_OPEN   = conf['CODE_TAP_OPEN']
+CODE_TAP_CLOSE  = conf['CODE_TAP_CLOSE']
 
+LOG_PATH = conf['LOG_PATH']
 # 日志文件
 import logging
 #  logging.basicConfig(level = logging.INFO,
@@ -90,16 +91,29 @@ logger.addHandler(ch)
 # 记录一条日志
 logger.info('starting')
 
+# 数据库相关
+from sqlalchemy import create_engine
+from sqlalchemy import update
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
+
+# 初始化数据库连接:
+engine = create_engine(SQLALCHEMY_DATABASE_URI)
+# 创建DBSession类型:
+#  DBSession = sessionmaker(bind=engine)
+#  session = DBSession()
+
+session_factory = sessionmaker(bind=engine)
+Session = scoped_session(session_factory)
+
+# 全局session, 用于线程外的
+session = Session()
+
+from models import Device,DeviceTime,DeviceOperateLog
 
 # 帮助
 from helper import getCurrentDate, getFormatDate
 
-# 数据库相关
-# from sql import session
-from sql import Session
-session = Session()
-
-from model import Device,DeviceTime,DeviceOperateLog
 
 # mqtt相关
 import paho.mqtt.client as mqtt
@@ -117,6 +131,7 @@ class MqttClient(object):
     }
 
     def __init__(self):
+
         self.time_thread = threading.Thread(target=self.timerTask)
         self.time_thread.setDaemon(True)
         self.time_thread.start()
@@ -129,7 +144,7 @@ class MqttClient(object):
         """ The callback for when the client receives a CONNACK response from the server.
         """
         # 连接mqtt服务器
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(MQTT_CLIENT_ID)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(MQTT_BROKER_URL, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
@@ -162,47 +177,67 @@ class MqttClient(object):
                     device_info.online = 0
                     self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 0))
                 session.commit()
-        return
 
         operate_res = self.regex['operate'].match(topic)
         if operate_res:
             sn = operate_res.group(1)
             sub_pub = operate_res.group(2)
-            payload = json.loads(payload)
+            #  payload = json.loads(payload)
+            payload = payload.split(':')
+            if payload and len(payload) == 2:
+                code = payload[0]
+                msg = payload[1]
+                # 监听到阀门状态变化
+                if code == CODE_TAP_STATUS:
+                    self.deviceStatusChanged(sn, msg)
+                logger.info("设备操作记录:")
+                if sub_pub == 'sub':
+                    logger.info("user->device: %s"%payload)
+                    self.deviceOperateLogAdd(sn,code,msg,'小程序')
+                if sub_pub == 'pub':
+                    logger.info("device->user: %s"%payload)
+                    self.deviceOperateLogAdd(sn,code,msg,'小程序')
 
-            code = int(payload['code']) if 'code' in payload else ''
-            msg = payload['msg'] if 'msg' in payload else ''
-
-            logger.info("设备操作记录:")
-            if sub_pub == 'sub':
-                logger.info("user->device: %s"%payload)
-                self.deviceOperateLogAdd(sn,code,msg,'小程序')
-            if sub_pub == 'pub':
-                logger.info("device->user: %s"%payload)
-                self.deviceOperateLogAdd(sn,code,msg,'小程序')
-
-            # 监听到阀门状态变化
-            if int(code) == CMD_TAP_STATUS_1:
-                self.deviceStatusChanged(sn, int(msg))
 
     def deviceOperateLogAdd(self, sn, code, msg, source):
         device_info = session.query(Device).filter_by( sn=sn ).first()
         if device_info:
             operate_log = DeviceOperateLog()
             operate_log.device_id = device_info.id
-            operate_log.code = code
-            operate_log.msg = msg
+            operate_log.msg = "%s:%s"%(code, msg)
             operate_log.source = source
             operate_log.time = getCurrentDate()
             session.add(operate_log)
             session.commit()
+            logger.info("添加记录完成:")
 
     def deviceStatusChanged(self, sn, status):
         device_info = session.query(Device).filter_by( sn=sn ).first()
         if device_info:
-            device_info.status = status
+            # 1号阀门状态
+            if status == "1-0":
+                device_info.status1 = 0
+            if status == "1-1":
+                device_info.status1 = 1
+            if status == "1-2":
+                device_info.status1 = 2
+            if status == "1-3":
+                device_info.status1 = 3
+            if status == "1-4":
+                device_info.status1 = 4
+            # 2号阀门状态
+            if status == "2-0":
+                device_info.status2 = 0
+            if status == "2-1":
+                device_info.status2 = 1
+            if status == "2-2":
+                device_info.status2 = 2
+            if status == "2-3":
+                device_info.status2 = 3
+            if status == "2-4":
+                device_info.status2 = 4
             session.commit()
-            logger.info("阀门状态变化:%s"%msg)
+            logger.info("阀门状态变化: %s>>>%s"%(sn,status))
 
     def deviceControlTap(self, id, cmd):
         resp = {}
@@ -223,27 +258,25 @@ class MqttClient(object):
     def timerTaskJob(self):
         logger.info("执行定时任务......")
         # 线程中使用session需要添加一个新的对象来进行执行
-        session = Session()
+        se = Session()
         time_now = getFormatDate(format="%H:%M")
         time_week = getFormatDate(format="%w")
-        time_info = session.query(DeviceTime).filter_by( alive=1 ).all()
+        time_info = se.query(DeviceTime).filter_by( alive=1 ).all()
         for t in time_info:
             logger.info(t.open_time)
             if t.type == 1: # 执行一次的任务
                 if t.open_time == time_now:
                     if t.open_flag == 0:
-                        if self.deviceControlTap(t.device_id, CMD_TAP_OPEN_1):
-                            t.open_flag = 1
-                            session.commit()
+                            se.commit()
                 if t.close_time == time_now:
                     if t.close_flag == 0:
                         if self.deviceControlTap(t.device_id, CMD_TAP_CLOSE_1):
                             t.close_flag = 1
-                            session.commit()
+                            se.commit()
                 if t.open_flag == 1 and t.close_flag == 1:
                     # 单次任务的执行步骤完成, 关闭任务
                     t.alive = 0
-                    session.commit()
+                    se.commit()
             else: # 其他周期性的任务，按星期来执行
                 period = str(t.period).split(',')
                 if time_week == '0':
