@@ -7,7 +7,7 @@ import json
 import datetime
 
 from app.common.libs.Helper import getCurrentDate
-from app.common.libs.MqttService import CMD
+from app.common.libs.MqttService import MqttService
 
 from app import db
 from app.model import Member
@@ -87,6 +87,9 @@ def deviceList():
                         all()
     data = []
     for d in device_list:
+        # 从mqtt服务器中获取设备在线状态
+        online = MqttService.getConnections(d.sn)
+        d.online = online
         data.append({
             'name':d.name,
             'number':d.number,
@@ -125,6 +128,7 @@ def deviceInfo():
         resp['msg'] = 'device not exist!'
         return jsonify(resp)
 
+    device_info.online = MqttService.getConnections(device_info.sn)
     data = {
         'name':device_info.name,
         'sn':device_info.sn,
@@ -362,4 +366,35 @@ def deviceOperateLogList():
     resp['data'] = data
 
     return jsonify(resp)
+
+
+@route_api.route("/device/connections",methods = [ "GET","POST" ])
+def deviceConnections():
+    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
+    req = request.values
+    sn_list = req['sn_list'] if 'sn_list' in req else []
+    connections = {}
+    if sn_list:
+        sn_list = json.loads(sn_list)
+        for sn in sn_list:
+            connections[sn] = {'online': MqttService.getConnections(sn)}
+
+    resp['data'] = connections
+
+    return jsonify(resp)
+
+@route_api.route("/device/connection",methods = [ "GET","POST" ])
+def deviceConnection():
+    resp = {'code': 200, 'msg': 'ok~', 'data': {}}
+    req = request.values
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
+        resp['msg'] = "need sn"
+        return jsonify(resp)
+    resp['msg'] = MqttService.getConnections(sn)
+    return jsonify(resp)
+
+
+
 

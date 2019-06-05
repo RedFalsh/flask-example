@@ -42,6 +42,12 @@ class Config(object):
         'mch_id':'xxxxxxxxxxxx换自己的',
         'callback_url':'/api/order/callback'
     }
+
+    MQTT_SERVER_BASE_URLS = "http://dqtttt.cn:18083/"
+    MQTT_SERVER_NODE = "emqx@127.0.0.1"
+    MQTT_SERVER_USER = "admin"
+    MQTT_SERVER_PASSWORD = "public"
+
     API_IGNORE_URLS = [
         "^/api"
     ]
