@@ -8,6 +8,7 @@ import datetime
 
 from app.common.libs.Helper import getCurrentDate
 from app.common.libs.MqttService import MqttService
+from app.common.libs.Logging import logger
 
 from app import db
 from app.model import Member
@@ -90,6 +91,7 @@ def deviceList():
         # 从mqtt服务器中获取设备在线状态
         online = MqttService.getConnections(d.sn)
         d.online = online
+
         data.append({
             'name':d.name,
             'number':d.number,
@@ -168,6 +170,35 @@ def deviceDelete(sn):
 
     return jsonify(resp)
 
+@route_api.route("/device/edit",methods = [ "GET","POST" ])
+def deviceEdit():
+    resp = {'code': 200, 'msg': '操作成功~', 'data': {}}
+    req = request.values
+
+    logger.info(req)
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn:
+        resp['code'] = -1
+        resp['msg'] = "失败,需要设备编码~"
+        return jsonify(resp)
+
+    device_info = Device.query.filter_by( sn = sn ).first()
+    if not device_info:
+        resp['code'] = -1
+        resp['msg'] = '失败,设备不存在~'
+        return jsonify(resp)
+
+    alias1 = req['alias1'] if 'alias1' in req else ''
+    alias2 = req['alias2'] if 'alias2' in req else ''
+    position = req['position'] if 'position' in req else ''
+
+    device_info.alias1 = alias1
+    device_info.alias2 = alias2
+    device_info.position = position
+
+    db.session.commit()
+
+    return jsonify(resp)
 
 # 设备定时任务相关api
 @route_api.route("/device/time/add",methods = [ "GET","POST" ])
@@ -325,6 +356,7 @@ def deviceTimeList():
     return jsonify(resp)
 
 
+# 设备操作日志api
 @route_api.route("/device/operatelog/list",methods = [ "GET","POST" ])
 def deviceOperateLogList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
@@ -368,6 +400,7 @@ def deviceOperateLogList():
     return jsonify(resp)
 
 
+# 设备连接状态获取api
 @route_api.route("/device/connections",methods = [ "GET","POST" ])
 def deviceConnections():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}

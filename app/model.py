@@ -107,6 +107,7 @@ class DeviceMqtt(db.Model):
     updated_time = db.Column(db.DateTime)
     created_time = db.Column(db.DateTime)
 
+
 class DeviceTime(db.Model):
     __tablename__ = 'device_time'
 

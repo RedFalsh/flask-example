@@ -5,60 +5,65 @@ import sys
 import getopt
 
 #  from config import config
-import configparser
+#  import configparser
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"-h-v",["help","version","ini="])
-    if not opts:
-        print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
-        sys.exit(2)
-    for opt_name,opt_value in opts:
-        if opt_name in ('-h','--help'):
-            print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
-            sys.exit(0)
-        if opt_name in ('-v','--version'):
-            print("v1.01 ")
-            sys.exit(0)
-        if opt_name in ('-i','--ini'):
-            ini_file = opt_value
-            cf = configparser.ConfigParser()
-            cf.read(ini_file)
-            print("timer load file: ", ini_file)
-except getopt.GetoptError:
-    print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
-    sys.exit(2)
+#  try:
+    #  opts, args = getopt.getopt(sys.argv[1:],"-h-v",["help","version","ini="])
+    #  if not opts:
+        #  print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+        #  sys.exit(2)
+    #  for opt_name,opt_value in opts:
+        #  if opt_name in ('-h','--help'):
+            #  print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+            #  sys.exit(0)
+        #  if opt_name in ('-v','--version'):
+            #  print("v1.01 ")
+            #  sys.exit(0)
+        #  if opt_name in ('-i','--ini'):
+            #  ini_file = opt_value
+            #  cf = configparser.ConfigParser()
+            #  cf.read(ini_file)
+            #  print("timer load file: ", ini_file)
+#  except getopt.GetoptError:
+    #  print('usage: timer [-v|--version] [-h|--help] [--ini=<path>]')
+    #  sys.exit(2)
 
 
-conf = cf['conf']
+#  conf = cf['conf']
 
-SQLALCHEMY_DATABASE_URI= conf['SQLALCHEMY_DATABASE_URI']
+#  SQLALCHEMY_DATABASE_URI= conf['SQLALCHEMY_DATABASE_URI']
 
-MQTT_BROKER_URL  = conf['MQTT_BROKER_URL']
-MQTT_BROKER_PORT = int(conf['MQTT_BROKER_PORT'])
-MQTT_CLIENT_ID   = conf['MQTT_CLIENT_ID']
-MQTT_USERNAME    = conf['MQTT_USERNAME']
-MQTT_PASSWORD    = conf['MQTT_PASSWORD']
-MQTT_KEEPALIVE   = int(conf['MQTT_KEEPALIVE'])
-MQTT_TLS_ENABLED = True if conf['MQTT_TLS_ENABLED'].lower() == 'true' else False
+#  MQTT_BROKER_URL  = conf['MQTT_BROKER_URL']
+#  MQTT_BROKER_PORT = int(conf['MQTT_BROKER_PORT'])
+#  MQTT_CLIENT_ID   = conf['MQTT_CLIENT_ID']
+#  MQTT_USERNAME    = conf['MQTT_USERNAME']
+#  MQTT_PASSWORD    = conf['MQTT_PASSWORD']
+#  MQTT_KEEPALIVE   = int(conf['MQTT_KEEPALIVE'])
+#  MQTT_TLS_ENABLED = True if conf['MQTT_TLS_ENABLED'].lower() == 'true' else False
+#  MQTT_SUBCRIBE = [
+    #  ("$SYS/brokers/+/clients/#", 0),
+    #  ("/tap/#", 0),
+#  ]
+
+#  LOG_PATH = conf['LOG_PATH']
+
+SQLALCHEMY_DATABASE_URI="mysql+pymysql://root:#Redfalsh192729@dqtttt.cn:3306/tap"
+
+MQTT_BROKER_URL  = 'dqtttt.cn'
+MQTT_BROKER_PORT = 1883
+MQTT_CLIENT_ID   = 'xxx'
+MQTT_USERNAME    = 'admin'
+MQTT_PASSWORD    = 'public'
+MQTT_KEEPALIVE   = 60
+MQTT_TLS_ENABLED = False
+
 MQTT_SUBCRIBE = [
     ("$SYS/brokers/+/clients/#", 0),
-    ("/dev/#", 0),
+    ("/tap/#", 0),
 ]
 
-CMD_TAP_OPEN_1   = conf['CMD_TAP_OPEN_1']
-CMD_TAP_CLOSE_1  = conf['CMD_TAP_CLOSE_1']
-CMD_TAP_OPEN_2   = conf['CMD_TAP_OPEN_2']
-CMD_TAP_CLOSE_2  = conf['CMD_TAP_CLOSE_2']
-CMD_TAP_STATUS_1 = conf['CMD_TAP_STATUS_1']
-CMD_TAP_STATUS_2 = conf['CMD_TAP_STATUS_2']
-CMD_TAP_ONLINE   = conf['CMD_TAP_ONLINE']
+LOG_PATH='/opt/timer.log'
 
-CODE_TAP_ALIVE  = conf['CODE_TAP_ALIVE']
-CODE_TAP_STATUS = conf['CODE_TAP_STATUS']
-CODE_TAP_OPEN   = conf['CODE_TAP_OPEN']
-CODE_TAP_CLOSE  = conf['CODE_TAP_CLOSE']
-
-LOG_PATH = conf['LOG_PATH']
 # 日志文件
 import logging
 #  logging.basicConfig(level = logging.INFO,
@@ -136,7 +141,7 @@ class MqttClient(object):
         self.time_thread.setDaemon(True)
         self.time_thread.start()
 
-        schedule.every(30).seconds.do(self.timerTaskJob)
+        schedule.every(5).seconds.do(self.timerTaskJob)
 
         self.run()
 
@@ -164,89 +169,88 @@ class MqttClient(object):
         logger.info("topic:"+topic)
         logger.info("payload:"+payload)
 
-        connect_res = self.regex['connect'].match(topic)
+        # 匹配设备上线
+        connect_res = re.compile(r'^\$SYS/brokers/(.*?)/clients/([a-zA-Z0-9]{10})/(connected|disconnected)').match(topic)
         if connect_res:
             sn = connect_res.group(2)
             connect = connect_res.group(3)
+            logger.info("设备%s"%sn)
             device_info = session.query(Device).filter_by( sn=sn ).first()
             if device_info:
                 if connect == "connected":
+                    logger.info("设备%s上线"%sn)
                     device_info.online = 1
-                    self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 1))
+                    self.deviceOperateLogAdd(sn,'上线','mqtt服务器')
+                    # self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 1))
                 if connect == "disconnected":
+                    logger.info("设备%s掉线"%sn)
                     device_info.online = 0
-                    self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 0))
+                    self.deviceOperateLogAdd(sn,'下线','mqtt服务器')
+                    # self.client.publish('/dev/%s/pub'%sn, "%s:%s"%(CMD_TAP_ONLINE, 0))
                 session.commit()
 
-        operate_res = self.regex['operate'].match(topic)
+        # 匹配设备相关操作
+        operate_res = re.compile(r'^/tap/([a-zA-Z0-9]{10})/(.*)').match(topic)
+        logger.info(operate_res)
         if operate_res:
             sn = operate_res.group(1)
-            sub_pub = operate_res.group(2)
-            #  payload = json.loads(payload)
-            payload = payload.split(':')
-            if payload and len(payload) == 2:
-                code = payload[0]
-                msg = payload[1]
-                # 监听到阀门状态变化
-                if code == CODE_TAP_STATUS:
-                    self.deviceStatusChanged(sn, msg)
-                logger.info("设备操作记录:")
-                if sub_pub == 'sub':
-                    logger.info("user->device: %s"%payload)
-                    self.deviceOperateLogAdd(sn,code,msg,'小程序')
-                if sub_pub == 'pub':
-                    logger.info("device->user: %s"%payload)
-                    self.deviceOperateLogAdd(sn,code,msg,'小程序')
+            logger.info(sn)
+            tag = operate_res.group(2)
+            logger.info(tag)
+            if tag == "sta1":
+                logger.info("1号阀状态变化:%s"%payload)
+                self.deviceStatusChanged(sn=sn, status1=payload)
+                if payload == "0":
+                    self.deviceOperateLogAdd(sn,'1号阀:关闭','设备')
+                if payload == "1":
+                    self.deviceOperateLogAdd(sn,'1号阀:开启','设备')
+                if payload == "2":
+                    self.deviceOperateLogAdd(sn,'1号阀:半开','设备')
+            if tag == "sta2":
+                logger.info("2号阀状态变化:%s"%payload)
+                self.deviceStatusChanged(sn=sn, status2=payload)
+                if payload == "0":
+                    self.deviceOperateLogAdd(sn,'2号阀:关闭','设备')
+                if payload == "1":
+                    self.deviceOperateLogAdd(sn,'2号阀:开启','设备')
+                if payload == "2":
+                    self.deviceOperateLogAdd(sn,'2号阀:半开','设备')
 
-
-    def deviceOperateLogAdd(self, sn, code, msg, source):
+    def deviceOperateLogAdd(self, sn, msg, source):
         device_info = session.query(Device).filter_by( sn=sn ).first()
+        logger.info(device_info)
         if device_info:
             operate_log = DeviceOperateLog()
             operate_log.device_id = device_info.id
-            operate_log.msg = "%s:%s"%(code, msg)
+            operate_log.msg = msg
             operate_log.source = source
             operate_log.time = getCurrentDate()
             session.add(operate_log)
             session.commit()
-            logger.info("添加记录完成:")
+            logger.info("添加记录完成")
 
-    def deviceStatusChanged(self, sn, status):
+    def deviceStatusChanged(self, sn="", status1=None, status2=None):
         device_info = session.query(Device).filter_by( sn=sn ).first()
         if device_info:
             # 1号阀门状态
-            if status == "1-0":
-                device_info.status1 = 0
-            if status == "1-1":
-                device_info.status1 = 1
-            if status == "1-2":
-                device_info.status1 = 2
-            if status == "1-3":
-                device_info.status1 = 3
-            if status == "1-4":
-                device_info.status1 = 4
+            if status1 is not None:
+                device_info.status1 = int(status1)
             # 2号阀门状态
-            if status == "2-0":
-                device_info.status2 = 0
-            if status == "2-1":
-                device_info.status2 = 1
-            if status == "2-2":
-                device_info.status2 = 2
-            if status == "2-3":
-                device_info.status2 = 3
-            if status == "2-4":
-                device_info.status2 = 4
+            if status2 is not None:
+                device_info.status2 = int(status2)
             session.commit()
-            logger.info("阀门状态变化: %s>>>%s"%(sn,status))
+            logger.info("阀门状态变化: %s>>>\tstatus1:%s\tstatus2:%s "%(sn, status1, status2))
 
-    def deviceControlTap(self, id, cmd):
+    def deviceControlTap(self, num, device_id, cmd):
         resp = {}
-        device_info = session.query(Device).filter_by( id=id ).first()
+        device_info = session.query(Device).filter_by( id=device_id ).first()
         if device_info:
             if device_info.online == 1:
-                resp['code'] = cmd
                 sn = device_info.sn
-                self.client.publish('/dev/%s/sub'%sn, json.dumps(resp))
+                if num == 1:
+                    self.client.publish('/tap/%s/sw1'%sn, cmd, 2)
+                if num == 2:
+                    self.client.publish('/tap/%s/sw2'%sn, cmd, 2)
                 logger.info("mqtt推送消息......")
                 return True
 
@@ -258,34 +262,36 @@ class MqttClient(object):
     def timerTaskJob(self):
         logger.info("执行定时任务......")
         # 线程中使用session需要添加一个新的对象来进行执行
-        se = Session()
+        tmp_session = Session()
         time_now = getFormatDate(format="%H:%M")
         time_week = getFormatDate(format="%w")
-        time_info = se.query(DeviceTime).filter_by( alive=1 ).all()
+        time_info = tmp_session.query(DeviceTime).filter_by( alive=1 ).all()
         for t in time_info:
             logger.info(t.open_time)
             if t.type == 1: # 执行一次的任务
                 if t.open_time == time_now:
                     if t.open_flag == 0:
-                            se.commit()
+                        if self.deviceControlTap(t.switch_num, t.device_id, 'ON'):
+                            t.open_flag = 1
+                            tmp_session.commit()
                 if t.close_time == time_now:
                     if t.close_flag == 0:
-                        if self.deviceControlTap(t.device_id, CMD_TAP_CLOSE_1):
+                        if self.deviceControlTap(t.switch_num, t.device_id, 'OFF'):
                             t.close_flag = 1
-                            se.commit()
+                            tmp_session.commit()
                 if t.open_flag == 1 and t.close_flag == 1:
                     # 单次任务的执行步骤完成, 关闭任务
                     t.alive = 0
-                    se.commit()
+                    tmp_session.commit()
             else: # 其他周期性的任务，按星期来执行
                 period = str(t.period).split(',')
                 if time_week == '0':
                     time_week = '7'
                 if time_week in period:
                     if t.open_time == time_now:
-                        self.deviceControlTap(t.device_id, CMD_TAP_OPEN_1)
+                        self.deviceControlTap(t.switch_num, t.device_id, 'ON')
                     if t.close_time == time_now:
-                        self.deviceControlTap(t.device_id, CMD_TAP_CLOSE_1)
+                        self.deviceControlTap(t.switch_num, t.device_id, 'OFF')
         Session.remove()
 
 
