@@ -70,6 +70,7 @@ class Device(db.Model):
     tag          = db.Column(db.String(30))
     position     = db.Column(db.String(200))
     online       = db.Column(db.Integer)
+    power        = db.Column(db.Numeric(10,3))
     sub          = db.Column(db.String(50))
     pub          = db.Column(db.String(50))
 

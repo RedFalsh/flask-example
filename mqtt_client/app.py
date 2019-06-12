@@ -120,6 +120,7 @@ from models import Device,DeviceTime,DeviceOperateLog
 from helper import getCurrentDate, getFormatDate
 
 
+
 # mqtt相关
 import paho.mqtt.client as mqtt
 import re
@@ -127,6 +128,7 @@ import json
 import time
 import threading
 import schedule
+import decimal
 
 class MqttClient(object):
 
@@ -215,6 +217,10 @@ class MqttClient(object):
                     self.deviceOperateLogAdd(sn,'2号阀:开启','设备')
                 if payload == "2":
                     self.deviceOperateLogAdd(sn,'2号阀:半开','设备')
+            if tag == "pow":
+                power = float(int(payload)/1000)
+                self.deviceOperateLogAdd(sn,'电量:%s'%power,'设备')
+                self.devicePowerChanged(sn=sn, power=power)
 
     def deviceOperateLogAdd(self, sn, msg, source):
         device_info = session.query(Device).filter_by( sn=sn ).first()
@@ -241,6 +247,14 @@ class MqttClient(object):
             session.commit()
             logger.info("阀门状态变化: %s>>>\tstatus1:%s\tstatus2:%s "%(sn, status1, status2))
 
+    def devicePowerChanged(self, sn="", power=0):
+        device_info = session.query(Device).filter_by( sn=sn ).first()
+        if device_info:
+            device_info.power = decimal.Decimal(power)
+            session.commit()
+            logger.info("阀门%s电量采集: %s "%(sn, power))
+
+
     def deviceControlTap(self, num, device_id, cmd):
         resp = {}
         device_info = session.query(Device).filter_by( id=device_id ).first()
@@ -253,6 +267,32 @@ class MqttClient(object):
                     self.client.publish('/tap/%s/sw2'%sn, cmd, 2)
                 logger.info("mqtt推送消息......")
                 return True
+    def deviceTapOpen(self, num, device_id):
+        device_info = session.query(Device).filter_by( id=device_id ).first()
+        if device_info:
+            if device_info.online == 1:
+                sn = device_info.sn
+                if num == 1:
+                    self.client.publish('/tap/%s/sw1'%sn, "ON", 2)
+                if num == 2:
+                    self.client.publish('/tap/%s/sw2'%sn, "ON", 2)
+                logger.info("mqtt推送消息......")
+                return True
+        return False
+
+    def deviceTapClose(self, num, device_id):
+        device_info = session.query(Device).filter_by( id=device_id ).first()
+        if device_info:
+            if device_info.online == 1:
+                sn = device_info.sn
+                if num == 1:
+                    self.client.publish('/tap/%s/sw1'%sn, "OFF", 2)
+                if num == 2:
+                    self.client.publish('/tap/%s/sw2'%sn, "OFF", 2)
+                logger.info("mqtt推送消息......")
+                return True
+        return False
+
 
     def timerTask(self):
         while True:

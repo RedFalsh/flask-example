@@ -1,5 +1,5 @@
 # coding: utf-8
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import Column, DateTime, String, Text, Numeric
 from sqlalchemy.dialects.mysql import BIGINT, INTEGER
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -21,6 +21,7 @@ class Device(Base):
     position = Column(String(200))
     online = Column(INTEGER(11))
     status = Column(INTEGER(11))
+    power = Column(Numeric(10,3))
     alias1 = Column(String(30))
     alias2 = Column(String(30))
     status1 = Column(INTEGER(11))

@@ -100,6 +100,7 @@ def deviceList():
             'img':d.img,
             'position':d.position,
             'online':d.online,
+            'power':str(d.power),
             'status':d.status,
             'status1':d.status1,
             'status2':d.status2,
@@ -138,6 +139,7 @@ def deviceInfo():
         'img':device_info.img,
         'position':device_info.position,
         'online':device_info.online,
+        'power':str(device_info.power),
         'status':device_info.status,
         'alias1':device_info.alias1,
         'status1':device_info.status1,
@@ -228,6 +230,7 @@ def deviceTimeAdd():
     # 添加定时任务
     model_time = DeviceTime()
     model_time.device_id = device_info.id
+    model_time.switch_num = int(req['number'])
     model_time.alive = alive
     model_time.type = _type
     model_time.period = period
@@ -334,12 +337,17 @@ def deviceTimeList():
         resp['code'] = -1
         resp['msg'] = "need sn"
         return jsonify(resp)
+    number = req['number'] if 'number' in req else 0
+    if number == 0:
+        resp['code'] = -1
+        resp['msg'] = "need number"
+        return jsonify(resp)
 
     time_list = db.session.query(DeviceTime).\
                         filter(Device.sn==sn).\
                         filter(DeviceTime.device_id==Device.id).\
+                        filter(DeviceTime.switch_num==number).\
                         all()
-    print(time_list)
     data = []
     for d in time_list:
         data.append({
@@ -348,6 +356,7 @@ def deviceTimeList():
             'alive':d.alive,
             'period':d.period,
             'open_time':d.open_time,
+            'number':d.switch_num,
             'close_time':d.close_time
         })
 
@@ -374,27 +383,15 @@ def deviceOperateLogList():
 
     data = []
     for l in log_list:
-        ok = False
-        if l.code == CMD.TAP_STATUS:
-            if l.msg == '0':
-                l.msg = '关闭'
-                ok = True
-            if l.msg == '1':
-                l.msg = '开启'
-                ok = True
-            if l.msg == '2':
-                l.msg = '半开'
-                ok = True
-        if ok:
-            data.append({
-                'msg':l.msg,
-                'source':l.source,
-                'date':l.time.strftime("%Y-%m-%d"),
-                'time':l.time.strftime("%H:%M"),
-                'month':l.time.strftime("%m"),
-                'day':l.time.strftime("%d"),
-                'week':l.time.strftime("%w"),
-            })
+        data.append({
+            'msg':l.msg,
+            'source':l.source,
+            'date':l.time.strftime("%Y-%m-%d"),
+            'time':l.time.strftime("%H:%M"),
+            'month':l.time.strftime("%m"),
+            'day':l.time.strftime("%d"),
+            'week':l.time.strftime("%w"),
+        })
     resp['data'] = data
 
     return jsonify(resp)
