@@ -27,8 +27,7 @@ app.config['MQTT_TLS_ENABLED'] = False
 # 数据库初始化
 db = SQLAlchemy()
 db.init_app(app)
-
-from mqtt_client.model import User
+from model import User
 
 # mqtt初始化
 mqtt = Mqtt()

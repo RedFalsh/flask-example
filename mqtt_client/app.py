@@ -47,7 +47,7 @@ import getopt
 
 #  LOG_PATH = conf['LOG_PATH']
 
-SQLALCHEMY_DATABASE_URI="mysql+pymysql://root:#Redfalsh192729@dqtttt.cn:3306/tap"
+SQLALCHEMY_DATABASE_URI="mysql+pymysql://root:#Redfalsh192729@47.96.88.154:3306/tap"
 
 MQTT_BROKER_URL  = 'dqtttt.cn'
 MQTT_BROKER_PORT = 1883
@@ -137,15 +137,25 @@ class MqttClient(object):
         'operate': re.compile(r'^/dev/([a-zA-Z0-9]{10})/(sub|pub)')
     }
 
+    flag_connected = False
+
     def __init__(self):
 
         self.time_thread = threading.Thread(target=self.timerTask)
         self.time_thread.setDaemon(True)
         self.time_thread.start()
 
+        self.deviceOperateLogAdd('xqf0000002', 'test', 't')
         schedule.every(5).seconds.do(self.timerTaskJob)
+        schedule.every(1).seconds.do(self.timerCheckConnected)
 
         self.run()
+
+    def timerCheckConnected(self):
+        if not self.flag_connected:
+            logger.error("设备断线请求重连中....")
+            self.client.reconnect()
+            # Wait to reconnect
 
     def run(self):
         """ The callback for when the client receives a CONNACK response from the server.
@@ -153,6 +163,7 @@ class MqttClient(object):
         # 连接mqtt服务器
         self.client = mqtt.Client(MQTT_CLIENT_ID)
         self.client.on_connect = self.on_connect
+        self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
         self.client.connect(MQTT_BROKER_URL, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
         self.client.loop_forever()
@@ -161,6 +172,10 @@ class MqttClient(object):
         # 此处订阅所有设备的route
         logger.info("Connected with result code "+str(rc))
         self.client.subscribe(MQTT_SUBCRIBE)
+        self.flag_connected = True
+
+    def on_disconnect(self, client, userdata, rc):
+        self.flag_connected = False
 
     def on_message(self, client, userdata, msg):
         """ The callback for when a PUBLISH message is received from the server.
@@ -196,44 +211,37 @@ class MqttClient(object):
         logger.info(operate_res)
         if operate_res:
             sn = operate_res.group(1)
-            logger.info(sn)
             tag = operate_res.group(2)
-            logger.info(tag)
-            if tag == "sta1":
-                logger.info("1号阀状态变化:%s"%payload)
-                self.deviceStatusChanged(sn=sn, status1=payload)
-                if payload == "0":
-                    self.deviceOperateLogAdd(sn,'1号阀:关闭','设备')
-                if payload == "1":
-                    self.deviceOperateLogAdd(sn,'1号阀:开启','设备')
-                if payload == "2":
-                    self.deviceOperateLogAdd(sn,'1号阀:半开','设备')
-            if tag == "sta2":
-                logger.info("2号阀状态变化:%s"%payload)
-                self.deviceStatusChanged(sn=sn, status2=payload)
-                if payload == "0":
-                    self.deviceOperateLogAdd(sn,'2号阀:关闭','设备')
-                if payload == "1":
-                    self.deviceOperateLogAdd(sn,'2号阀:开启','设备')
-                if payload == "2":
-                    self.deviceOperateLogAdd(sn,'2号阀:半开','设备')
-            if tag == "pow":
-                power = float(int(payload)/1000)
-                self.deviceOperateLogAdd(sn,'电量:%s'%power,'设备')
-                self.devicePowerChanged(sn=sn, power=power)
+            self.deviceOperateLogAdd(sn,'topic:%s payload:%s' % (topic, payload), '设备')
+            # return
+            # if tag == "info":
+                # info = json.loads(payload)
+                # power = info["pow"]
+                # status1 = info["sta1"]
+                # status2 = info["sta2"]
+                # self.deviceStatusChanged(sn=sn, status1=status1)
+                # self.deviceStatusChanged(sn=sn, status2=status2)
+                # self.devicePowerChanged(sn=sn, power=power)
+            # if tag == "sta1":
+                # logger.info("1号阀状态变化:%s"%payload)
+                # self.deviceStatusChanged(sn=sn, status1=payload)
+            # if tag == "sta2":
+                # logger.info("2号阀状态变化:%s"%payload)
+                # self.deviceStatusChanged(sn=sn, status2=payload)
 
     def deviceOperateLogAdd(self, sn, msg, source):
-        device_info = session.query(Device).filter_by( sn=sn ).first()
-        logger.info(device_info)
+        _session = Session()
+        device_info = _session.query(Device).filter_by( sn=sn ).first()
         if device_info:
             operate_log = DeviceOperateLog()
             operate_log.device_id = device_info.id
             operate_log.msg = msg
             operate_log.source = source
             operate_log.time = getCurrentDate()
-            session.add(operate_log)
-            session.commit()
+            _session.add(operate_log)
+            _session.commit()
             logger.info("添加记录完成")
+        Session.remove()
 
     def deviceStatusChanged(self, sn="", status1=None, status2=None):
         device_info = session.query(Device).filter_by( sn=sn ).first()
@@ -244,16 +252,15 @@ class MqttClient(object):
             # 2号阀门状态
             if status2 is not None:
                 device_info.status2 = int(status2)
-            session.commit()
             logger.info("阀门状态变化: %s>>>\tstatus1:%s\tstatus2:%s "%(sn, status1, status2))
+            session.commit()
 
     def devicePowerChanged(self, sn="", power=0):
         device_info = session.query(Device).filter_by( sn=sn ).first()
         if device_info:
-            device_info.power = decimal.Decimal(power)
-            session.commit()
+            device_info.power = decimal.Decimal(float(power))
             logger.info("阀门%s电量采集: %s "%(sn, power))
-
+            session.commit()
 
     def deviceControlTap(self, num, device_id, cmd):
         resp = {}
@@ -267,15 +274,18 @@ class MqttClient(object):
                     self.client.publish('/tap/%s/sw2'%sn, cmd, 2)
                 logger.info("mqtt推送消息......")
                 return True
+
     def deviceTapOpen(self, num, device_id):
         device_info = session.query(Device).filter_by( id=device_id ).first()
         if device_info:
             if device_info.online == 1:
                 sn = device_info.sn
                 if num == 1:
-                    self.client.publish('/tap/%s/sw1'%sn, "ON", 2)
+                    if self.flag_connected:
+                        self.client.publish('/tap/%s/sw1'%sn, "ON", 2)
                 if num == 2:
-                    self.client.publish('/tap/%s/sw2'%sn, "ON", 2)
+                    if self.flag_connected:
+                        self.client.publish('/tap/%s/sw2'%sn, "ON", 2)
                 logger.info("mqtt推送消息......")
                 return True
         return False
@@ -286,9 +296,11 @@ class MqttClient(object):
             if device_info.online == 1:
                 sn = device_info.sn
                 if num == 1:
-                    self.client.publish('/tap/%s/sw1'%sn, "OFF", 2)
+                    if self.flag_connected:
+                        self.client.publish('/tap/%s/sw1'%sn, "OFF", 2)
                 if num == 2:
-                    self.client.publish('/tap/%s/sw2'%sn, "OFF", 2)
+                    if self.flag_connected:
+                        self.client.publish('/tap/%s/sw2'%sn, "OFF", 2)
                 logger.info("mqtt推送消息......")
                 return True
         return False
@@ -300,39 +312,42 @@ class MqttClient(object):
             time.sleep(1)
 
     def timerTaskJob(self):
-        logger.info("执行定时任务......")
-        # 线程中使用session需要添加一个新的对象来进行执行
-        tmp_session = Session()
-        time_now = getFormatDate(format="%H:%M")
-        time_week = getFormatDate(format="%w")
-        time_info = tmp_session.query(DeviceTime).filter_by( alive=1 ).all()
-        for t in time_info:
-            logger.info(t.open_time)
-            if t.type == 1: # 执行一次的任务
-                if t.open_time == time_now:
-                    if t.open_flag == 0:
-                        if self.deviceControlTap(t.switch_num, t.device_id, 'ON'):
-                            t.open_flag = 1
-                            tmp_session.commit()
-                if t.close_time == time_now:
-                    if t.close_flag == 0:
-                        if self.deviceControlTap(t.switch_num, t.device_id, 'OFF'):
-                            t.close_flag = 1
-                            tmp_session.commit()
-                if t.open_flag == 1 and t.close_flag == 1:
-                    # 单次任务的执行步骤完成, 关闭任务
-                    t.alive = 0
-                    tmp_session.commit()
-            else: # 其他周期性的任务，按星期来执行
-                period = str(t.period).split(',')
-                if time_week == '0':
-                    time_week = '7'
-                if time_week in period:
+        # try:
+            logger.info("执行定时任务......")
+            # 线程中使用session需要添加一个新的对象来进行执行
+            tmp_session = Session()
+            time_now = getFormatDate(format="%H:%M")
+            time_week = getFormatDate(format="%w")
+            time_info = tmp_session.query(DeviceTime).filter_by( alive=1 ).all()
+            for t in time_info:
+                logger.info(t.open_time)
+                if t.type == 1: # 执行一次的任务
                     if t.open_time == time_now:
-                        self.deviceControlTap(t.switch_num, t.device_id, 'ON')
+                        if t.open_flag == 0:
+                            if self.deviceControlTap(t.switch_num, t.device_id, 'ON'):
+                                t.open_flag = 1
+                                tmp_session.commit()
                     if t.close_time == time_now:
-                        self.deviceControlTap(t.switch_num, t.device_id, 'OFF')
-        Session.remove()
+                        if t.close_flag == 0:
+                            if self.deviceControlTap(t.switch_num, t.device_id, 'OFF'):
+                                t.close_flag = 1
+                                tmp_session.commit()
+                    if t.open_flag == 1 and t.close_flag == 1:
+                        # 单次任务的执行步骤完成, 关闭任务
+                        t.alive = 0
+                        tmp_session.commit()
+                else: # 其他周期性的任务，按星期来执行
+                    period = str(t.period).split(',')
+                    if time_week == '0':
+                        time_week = '7'
+                    if time_week in period:
+                        if t.open_time == time_now:
+                            self.deviceControlTap(t.switch_num, t.device_id, 'ON')
+                        if t.close_time == time_now:
+                            self.deviceControlTap(t.switch_num, t.device_id, 'OFF')
+            Session.remove()
+        # except Exception as e:
+            # logger.error(e)
 
 
 
