@@ -62,12 +62,13 @@ class MqttService():
                 return True
 
     @staticmethod
-    def devicePowerChanged(self, sn="", power=0):
+    def deviceChangedPower(sn, power):
         with app.app_context():
             device_info = db.session.query(Device).filter_by( sn=sn ).first()
             if device_info:
-                device_info.power = decimal.Decimal(float(power))
-                db.session.commit()
+                if power:
+                    device_info.power = decimal.Decimal( float(power) )
+                    db.session.commit()
 
     @staticmethod
     def deviceUpdateInfo(sn, info):
@@ -91,12 +92,18 @@ class MqttService():
             if device_info:
                 # 1号阀门状态
                 device_info.status1 = int(status)
-                # 添加记录
-                operate_log = DeviceOperateLog()
-                operate_log.device_id = device_info.id
-                operate_log.msg = '{"sta1":"%s"}' % status
-                operate_log.time = getCurrentDate()
-                db.session.add(operate_log)
+                if status < 3:
+                    # 添加记录
+                    operate_log = DeviceOperateLog()
+                    operate_log.device_id = device_info.id
+                    if status == 0:
+                        operate_log.msg = "关闭"
+                    if status == 1:
+                        operate_log.msg = "开启"
+                    if status == 2:
+                        operate_log.msg = "半开"
+                    operate_log.time = getCurrentDate()
+                    db.session.add(operate_log)
                 db.session.commit()
                 return True
 
@@ -107,12 +114,18 @@ class MqttService():
             if device_info:
                 # 1号阀门状态
                 device_info.status2 = int(status)
-                # 添加记录
-                operate_log = DeviceOperateLog()
-                operate_log.device_id = device_info.id
-                operate_log.msg = '{"sta2":"%s"}' % status
-                operate_log.time = getCurrentDate()
-                db.session.add(operate_log)
+                if status < 3:
+                    # 添加记录
+                    operate_log = DeviceOperateLog()
+                    operate_log.device_id = device_info.id
+                    if status == 0:
+                        operate_log.msg = "关闭"
+                    if status == 1:
+                        operate_log.msg = "开启"
+                    if status == 2:
+                        operate_log.msg = "半开"
+                    operate_log.time = getCurrentDate()
+                    db.session.add(operate_log)
                 db.session.commit()
                 return True
 

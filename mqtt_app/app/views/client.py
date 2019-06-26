@@ -29,7 +29,7 @@ def index():
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     mqtt.subscribe(topic="$SYS/brokers/+/clients/#", qos=0)
-    mqtt.subscribe(topic="/tap/#", qos=0)
+    mqtt.subscribe(topic="tap/#", qos=0)
     app.config['MQTT_CONNECTED']= True
 
 @mqtt.on_disconnect()
@@ -52,25 +52,33 @@ def handle_mqtt_message(client, userdata, message):
         sn = connect_res.group(2)
         connect = connect_res.group(3)
         if connect == "connected":
+            mqtt.publish('tap/%s/online'%sn,1)
             MqttService.deviceOnline(sn)
         if connect == "disconnected":
+            mqtt.publish('tap/%s/online'%sn,0)
             MqttService.deviceOffline(sn)
 
     # 匹配设备相关操作
-    operate_res = re.compile(r'^/tap/([a-zA-Z0-9]{10})/(.*)').match(topic)
+    operate_res = re.compile(r'^tap/([a-zA-Z0-9]{10})/(pub|sub)/(.*)').match(topic)
     if operate_res:
         sn = operate_res.group(1)
-        tag = operate_res.group(2)
-        if tag == "info":
-            MqttService.deviceUpdateInfo(sn, json.loads(payload))
+        pub_sub = operate_res.group(2)
+        tag = operate_res.group(3)
+        if pub_sub == "pub":
+            if tag == "info":
+                MqttService.deviceUpdateInfo(sn, json.loads(payload))
 
-        if tag == "sta1":
-            logger.info("1号阀状态变化:%s"%payload)
-            MqttService.deviceChangedStatus_1(sn, int(payload))
+            if tag == "pow":
+                MqttService.deviceChangedPower(sn, float(payload))
+                logger.info("电量采集:%s"%payload)
 
-        if tag == "sta2":
-            logger.info("2号阀状态变化:%s"%payload)
-            MqttService.deviceChangedStatus_2(sn, int(payload))
+            if tag == "sta1":
+                MqttService.deviceChangedStatus_1(sn, int(payload))
+                logger.info("1号阀状态变化:%s"%payload)
+
+            if tag == "sta2":
+                MqttService.deviceChangedStatus_2(sn, int(payload))
+                logger.info("2号阀状态变化:%s"%payload)
 
 def timerCheckConnected():
     if not app.config['MQTT_CONNECTED']:
@@ -93,10 +101,10 @@ def timerTaskJob():
                 logger.info("2")
                 if num == 1:
                     logger.info("3")
-                    mqtt.publish('/tap/%s/sw1'%sn, cmd, 2)
+                    mqtt.publish('tap/%s/sw1'%sn, cmd, 2)
                     logger.info("定时任务打开阀门")
                 if num == 2:
-                    mqtt.publish('/tap/%s/sw2'%sn, cmd, 2)
+                    mqtt.publish('tap/%s/sw2'%sn, cmd, 2)
                 return True
 
     try:

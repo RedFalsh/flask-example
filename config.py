@@ -25,6 +25,7 @@ class Config(object):
     #注意:  1、使用pymysql时需要mysql+pymysql才行!!!
     #       2、mysql中首先需要创建test数据库才能用manager.py初始化model中设计的表格
     SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@dqtttt.cn:3306/tap'
+    #  SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@localhost:3306/tap'
     #设置这一项是每次请求结束后都会自动提交数据库中的变动
     SQLALCHEMY_TRACK_MODIFICATIONS=True
 
@@ -36,8 +37,10 @@ class Config(object):
     MQTT_TLS_ENABLED = False
 
     MINA_APP = {
-        'appid':'wx544d45f6ce6ae390',
-        'appkey':'3f87b3a3ba73d334995e575e0cc13295',
+        'appid':'wx0c11db44a4804167',
+        'appkey':'3c9d94cff87250d2e04f19e70ea95c9e',
+        #  'appid':'wx544d45f6ce6ae390',
+        #  'appkey':'3f87b3a3ba73d334995e575e0cc13295',
         'paykey':'xxxxxxxxxxxxxx换自己的',
         'mch_id':'xxxxxxxxxxxx换自己的',
         'callback_url':'/api/order/callback'
