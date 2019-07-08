@@ -16,35 +16,35 @@ from app.common.libs.Helper import getCurrentDate
 @route_api.route("/user/login",methods = [ "GET","POST" ])
 def userLogin():
     resp = { 'code':20000,'data':{}}
-    if request.method == 'POST':
-        data = request.get_data()
-        if not data:
-            resp['code'] = -1
-            resp['message'] = "需要数据~"
-            return jsonify(resp)
-        form = json.loads(data)
-        username = form['username'] if 'username' in form else ''
-        password = form['password'] if 'password' in form else ''
-        if not username:
-            resp['code'] = -1
-            resp['message'] = "请填写用户名~"
-            return jsonify(resp)
-        if not password:
-            resp['code'] = -1
-            resp['message'] = "请填写密码~"
-            return jsonify(resp)
+    req = request.values
 
-        user_info = User.query.filter_by( login_name = username ).first()
-        if not user_info:
-            resp['code'] = -1
-            resp['message'] = "用户未注册~"
-            return jsonify(resp)
+    data = json.loads(req['data']) if 'data' in req else ''
+    if not data:
+        resp['code'] = -1
+        resp['message'] = "信息错误~"
+        return jsonify(resp)
+    username = data['username']
+    password = data['password']
+    if not username:
+        resp['code'] = -1
+        resp['message'] = "请填写用户名~"
+        return jsonify(resp)
+    if not password:
+        resp['code'] = -1
+        resp['message'] = "请填写密码~"
+        return jsonify(resp)
 
-        # 校验密码是否正确
-        if not user_info.login_pwd == UserService.genePwd(password,user_info.login_salt):
-            resp['code'] = -1
-            resp['message'] = "用户名或密码错误~"
-            return jsonify(resp)
+    user_info = User.query.filter_by( login_name = username ).first()
+    if not user_info:
+        resp['code'] = -1
+        resp['message'] = "用户未注册~"
+        return jsonify(resp)
+
+    # 校验密码是否正确
+    if not user_info.login_pwd == UserService.genePwd(password,user_info.login_salt):
+        resp['code'] = -1
+        resp['message'] = "用户名或密码错误~"
+        return jsonify(resp)
 
     token = "%s#%s" % (UserService.geneAuthCode(user_info), user_info.id)
     resp['data'] = {'token': token}
