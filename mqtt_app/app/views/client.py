@@ -52,10 +52,10 @@ def handle_mqtt_message(client, userdata, message):
         sn = connect_res.group(2)
         connect = connect_res.group(3)
         if connect == "connected":
-            mqtt.publish('tap/%s/online'%sn,1)
+            mqtt.publish('tap/%s/pub/online'%sn, 1)
             MqttService.deviceOnline(sn)
         if connect == "disconnected":
-            mqtt.publish('tap/%s/online'%sn,0)
+            mqtt.publish('tap/%s/pub/online'%sn, 0)
             MqttService.deviceOffline(sn)
 
     # 匹配设备相关操作
