@@ -53,11 +53,13 @@ def userLogin():
 @route_api.route("/user/register",methods = [ "GET","POST" ])
 def userRegister():
     resp = { 'code':20000 ,'message':'注册成功~','data':{} }
-    data = request.get_data()
-    if not data:
-        resp['code'] = -1
-        resp['message'] = "need application/x-www-form-urlencoded~"
-        return jsonify(resp)
+    req = request.values
+    #  data = request.get_data()
+    #  if not data:
+        #  resp['code'] = -1
+        #  resp['message'] = "need application/x-www-form-urlencoded~"
+        #  return jsonify(resp)
+    data = req['data'] if 'data' in req else ''
 
     form = json.loads(data)
     username = form['username'] if 'username' in form else ''
@@ -114,7 +116,7 @@ def userInfo():
         resp['message'] = "token err~"
         return jsonify(resp)
 
-    resp['data'] = {"roles": user_info.roles.split(';'),
+    resp['data'] = {"roles": user_info.roles.split(';') if user_info.roles else ['user'],
                     "introduction":user_info.introduction,
                     "avatar": user_info.avatar,
                     "name": user_info.nickname}

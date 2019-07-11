@@ -5,6 +5,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 #  from flask_mqtt import Mqtt
 from config import config
+from flask_cors import CORS
 import os
 
 # app初始化,
@@ -16,8 +17,11 @@ app.config.from_object(config['development'])
 
 # 数据库管理
 db = SQLAlchemy()
-# 数据库配置初始化
 db.init_app(app)
+
+# 跨域问题
+cors = CORS()
+cors.init_app(app, supports_credentials=True)
 
 # 后面需要调用db的，导入时需要放在db初始化完成之后
 from app.admin import admin

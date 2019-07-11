@@ -14,48 +14,24 @@ from app.model import DeviceTime
 
 from app.common.libs.Logging import logger
 from app.common.libs.UserService import UserService
+from app.common.libs.DeviceService import DeviceService
 from app.common.libs.Helper import getCurrentDate, getFormatDate
 
 from sqlalchemy import desc
 
+
+# 用户界面查询
 @route_api.route("/tap/list",methods = [ "GET","POST" ])
 def tapList():
     resp = { 'code':20000, 'message':'查询成功', 'data':{}}
-    req = request.values
-
-    name = req['name'] if 'name' in req else ''
-    position = req['position'] if 'position' in req else ''
-    page = int( req['page'] ) if 'page' in req else 0
-    limit = int( req['limit'] ) if 'limit' in req else 0
-    offset = ( page - 1 ) * limit
-
     user_info = UserService.getUserInfo(request)
-
-    query = Device.query\
-        .filter( Member.id == Device.member_id )\
-        .filter( Member.mobile == user_info.mobile )\
-        .filter( Device.position.like('%' + position + '%') )
-    total = query.count()
-    tap_list = query.offset( offset ).limit( limit ).all()
-
-    items = []
-    for tap in tap_list:
-        items.append({
-            'name': tap.name,
-            'number':tap.number,
-            'position':tap.position,
-            'sn': tap.sn,
-            'power': str(tap.power),
-            'online': tap.online,
-            'status1': tap.status1,
-            'status2': tap.status2,
-            'alias1': tap.alias1,
-            'alias2': tap.alias2,
-            'created_time': getFormatDate(tap.created_time),
-        })
-
-    resp['data']['items'] = items
-    resp['data']['total'] = total
+    req = request.values
+    if user_info.roles == 'editor':
+        resp = DeviceService.filterDeviceByEditor(req)
+        return jsonify( resp )
+    else:
+        resp = DeviceService.filterDeviceByUser(req, user_info)
+        return jsonify( resp )
 
     return jsonify( resp )
 
@@ -85,6 +61,20 @@ def tapEdit():
 
     db.session.commit()
     return jsonify(resp)
+
+@route_api.route("/tap/info",methods = [ "GET","POST" ])
+def tapInfo():
+    resp = { 'code':20000, 'message':'查询成功', 'data':{}}
+    req = request.values
+    sn = req['sn'] if 'sn' in req else ''
+    if not sn or len( sn ) < 1:
+        resp['code'] = -1
+        resp['message'] = "need sn"
+        return jsonify(resp)
+
+    resp = DeviceService.tapInfo(sn)
+
+    return jsonify( resp )
 
 @route_api.route("/tap/position/list",methods = [ "GET","POST" ])
 def tapPositionList():
