@@ -12,7 +12,11 @@ import os
 app = Flask(__name__, instance_relative_config=True)
 
 # 配置文件导入
-app.config.from_object(config['development'])
+if "TAP_MQTT_WEB" in os.environ:
+    app.config.from_object(config[os.environ['TAP_MQTT_WEB']])
+    print("当前系统环境变量值:%s"%os.environ['TAP_MQTT_WEB'])
+else:
+    print("请设置系统环境变量: TAP_MQTT_WEB")
 
 # 数据库管理
 db = SQLAlchemy()

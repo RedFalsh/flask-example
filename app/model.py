@@ -90,60 +90,53 @@ class Device(db.Model):
 class DeviceTap(db.Model):
     __tablename__ = 'device_tap'
 
-    id           = db.Column(db.Integer, primary_key=True)
-    device_id    = db.Column(db.Integer)
-    name         = db.Column(db.String(30))
-    status       = db.Column(db.Integer)
-
-
-class DeviceMqtt(db.Model):
-    __tablename__ = 'device_mqtt'
-
-    id           = db.Column(db.Integer, primary_key=True)
-    device_id    = db.Column(db.Integer)
-    server       = db.Column(db.String(100))
-    port         = db.Column(db.Integer)
-    login_user   = db.Column(db.String(20))
-    login_pwd    = db.Column(db.String(30))
-    sub          = db.Column(db.String(50))
-    pub          = db.Column(db.String(50))
-    updated_time = db.Column(db.DateTime)
-    created_time = db.Column(db.DateTime)
-
+    id        = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer)
+    alias     = db.Column(db.String(30))
+    status    = db.Column(db.Integer)
+    number    = db.Column(db.Integer)
+    tag       = db.Column(db.String(30))
 
 class DeviceTime(db.Model):
     __tablename__ = 'device_time'
 
-    id           = db.Column(db.Integer, primary_key=True)
-    device_id    = db.Column(db.Integer)
-    alive        = db.Column(db.Integer)
-    type         = db.Column(db.Integer)
-    switch_num   = db.Column(db.Integer)
-    period       = db.Column(db.String(30))
-    open_time    = db.Column(db.String(20))
-    open_flag    = db.Column(db.Integer)
-    close_time   = db.Column(db.String(20))
-    close_flag   = db.Column(db.Integer)
-    updated_time = db.Column(db.DateTime)
-    created_time = db.Column(db.DateTime)
+    id            = db.Column(db.Integer, primary_key=True)
+    device_id     = db.Column(db.Integer)
+    device_tap_id = db.Column(db.Integer)
+    alive         = db.Column(db.Integer)
+    type          = db.Column(db.Integer)
+    period        = db.Column(db.String(30))
+    open_time     = db.Column(db.String(20))
+    open_flag     = db.Column(db.Integer)
+    close_time    = db.Column(db.String(20))
+    close_flag    = db.Column(db.Integer)
+    updated_time  = db.Column(db.DateTime)
+    created_time  = db.Column(db.DateTime)
+
+class DeviceOnlineLog(db.Model):
+    __tablename__ = 'device_online_log'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer)
+    online    = db.Column(db.Integer)
+    time      = db.Column(db.DateTime)
+
+class DevicePowerLog(db.Model):
+    __tablename__ = 'device_power_log'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer)
+    power     = db.Column(db.Numeric(10,3))
+    time      = db.Column(db.DateTime)
+
 
 class DeviceOperateLog(db.Model):
     __tablename__ = 'device_operate_log'
 
-    id        = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer)
-    code       = db.Column(db.Integer)
-    msg       = db.Column(db.String(20))
-    source    = db.Column(db.String(50))
-    time      = db.Column(db.DateTime)
-
-class DeviceControl(db.Model):
-    __tablename__ = 'device_control'
-
-    id        = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer)
-    cmd       = db.Column(db.Integer)
-    cmd_hex   = db.Column(db.String(10))
-    msg       = db.Column(db.String(10))
-    time      = db.Column(db.DateTime)
+    id            = db.Column(db.Integer, primary_key=True)
+    device_id     = db.Column(db.Integer)
+    device_tap_id = db.Column(db.Integer)
+    msg           = db.Column(db.String(20))
+    operate       = db.Column(db.Integer)
+    time          = db.Column(db.DateTime)
 

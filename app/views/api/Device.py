@@ -13,7 +13,7 @@ from app.common.libs.Logging import logger
 from app import db
 from app.model import Member
 from app.model import Device
-from app.model import DeviceMqtt
+from app.model import DeviceTap
 from app.model import DeviceTime
 from app.model import DeviceOperateLog
 
@@ -31,14 +31,16 @@ def deviceAdd():
 
     req = request.values
     sn = req['sn'] if 'sn' in req else ''
-    if not sn or len( sn ) < 1:
+    if not sn:
         resp['code'] = -1
         resp['msg'] = "need sn"
         return jsonify(resp)
 
-    name = req['name'] if 'name' in req else ''
-    _type = req['type'] if 'type' in req else ''
     number = req['number'] if 'number' in req else ''
+    if not number:
+        resp['code'] = -1
+        resp['msg'] = "need number"
+        return jsonify(resp)
 
     dev_info = Device.query.filter_by( sn = sn ).first()
     if dev_info:
@@ -49,27 +51,27 @@ def deviceAdd():
     # 添加设备
     model_device = Device()
     model_device.member_id = member_id
-    model_device.sn = sn
-    model_device.type = _type
-    model_device.number = number
-    if _type == "tap":
-        model_device.name = "阀门"
-    else:
-        model_device.name = name
+    model_device.sn       = sn
+    model_device.number   = number
+    model_device.name     = "智能阀门"
     model_device.position = '未设置'
-    model_device.online = 0
-    model_device.status = 0
-
-    model_device.alias1 = "阀门1"
-    model_device.status1 = 0
-
-    model_device.alias2 = "阀门2"
-    model_device.status2 = 0
-
-    model_device.sub='/dev/%s/sub'%sn
-    model_device.pub='/dev/%s/pub'%sn
+    model_device.online   = 0
+    model_device.status   = 0
+    model_device.power    = 0
     model_device.updated_time = model_device.created_time = getCurrentDate()
     db.session.add(model_device)
+    # 这里先提交，会生成一个设备id,后面添加子阀门用
+    db.session.commit()
+
+    # 添加设备子阀门
+    if number == "dqt002":
+        for i in range(2):
+            model_tap = DeviceTap()
+            model_tap.device_id = model_device.id
+            model_tap.number = i+1
+            model_tap.alias = "%s号阀门"%(i+1)
+            model_tap.status = 0
+            db.session.add(model_tap)
     db.session.commit()
 
     return jsonify( resp )
@@ -82,7 +84,7 @@ def deviceList():
     auth_id = auth_info[1]
 
     member_info = Member.query.filter_by( id = auth_id ).first()
-    device_list = db.session.query(Device).\
+    device_list = Device.query.\
                         filter(Member.id==auth_id).\
                         filter(Member.id==Device.member_id).\
                         all()
@@ -92,22 +94,22 @@ def deviceList():
         online = MqttService.getConnections(d.sn)
         d.online = online
 
+        tap_list = DeviceTap.query.filter(DeviceTap.device_id == d.id).all()
+        taps = [{
+            'id' : tap.id,
+            'alias' : tap.alias,
+            'status' : tap.status,
+            'number' : tap.number
+        } for tap in tap_list]
+
         data.append({
+            'id':d.id,
             'name':d.name,
-            'number':d.number,
             'sn':d.sn,
-            'type':d.type,
-            'img':d.img,
             'position':d.position,
             'online':d.online,
             'power':str(d.power),
-            'status':d.status,
-            'status1':d.status1,
-            'status2':d.status2,
-            'alias1':d.alias1,
-            'alias2':d.alias2,
-            'sub':d.sub,
-            'pub':d.pub
+            'taps': taps,
         })
 
     resp['data'] = data
@@ -177,7 +179,6 @@ def deviceEdit():
     resp = {'code': 200, 'msg': '操作成功~', 'data': {}}
     req = request.values
 
-    logger.info(req)
     sn = req['sn'] if 'sn' in req else ''
     if not sn:
         resp['code'] = -1
@@ -190,13 +191,18 @@ def deviceEdit():
         resp['msg'] = '失败,设备不存在~'
         return jsonify(resp)
 
-    alias1 = req['alias1'] if 'alias1' in req else ''
-    alias2 = req['alias2'] if 'alias2' in req else ''
+    # 更新设备信息
+    name = req['name'] if 'name' in req else ''
     position = req['position'] if 'position' in req else ''
-
-    device_info.alias1 = alias1
-    device_info.alias2 = alias2
+    device_info.name = name
     device_info.position = position
+
+    #更新所属阀门信息
+    taps = json.loads(req['taps']) if 'taps' in req else []
+    for tap in taps:
+        tap_info = DeviceTap.query.filter(DeviceTap.device_id == device_info.id).filter(DeviceTap.number == int(tap['number'])).first()
+        if tap_info:
+            tap_info.alias = tap['alias']
 
     db.session.commit()
 
@@ -206,21 +212,13 @@ def deviceEdit():
 @route_api.route("/device/time/add",methods = [ "GET","POST" ])
 def deviceTimeAdd():
     resp = { 'code':200 ,'msg':'ok~','data':{} }
-
     req = request.values
-    sn = req['sn'] if 'sn' in req else ''
 
-    if not sn or len( sn ) < 1:
+    tap_id = req['tap_id'] if 'tap_id' in req else 0
+    if tap_id == 0:
         resp['code'] = -1
-        resp['msg'] = "设备序列号错误~~"
+        resp['msg'] = "need tap_id"
         return jsonify(resp)
-
-    device_info = Device.query.filter_by( sn = sn ).first()
-    if not device_info:
-        resp['code'] = -1
-        resp['msg'] = "当前设备不存在~~"
-        return jsonify(resp)
-
 
     _type = int(req['type']) if 'type' in req else 0
     alive = int(req['alive']) if 'alive' in req else 0
@@ -229,8 +227,7 @@ def deviceTimeAdd():
     close_time = req['close_time'] if 'close_time' in req else ''
     # 添加定时任务
     model_time = DeviceTime()
-    model_time.device_id = device_info.id
-    model_time.switch_num = int(req['number'])
+    model_time.device_tap_id = tap_id
     model_time.alive = alive
     model_time.type = _type
     model_time.period = period
@@ -250,20 +247,14 @@ def deviceTimeEdit():
     resp = { 'code':200 ,'msg':'ok~','data':{} }
 
     req = request.values
-    sn = req['sn'] if 'sn' in req else ''
 
-    if not sn or len( sn ) < 1:
+    time_id = req['time_id'] if 'time_id' in req else 0
+    if time_id == 0:
         resp['code'] = -1
-        resp['msg'] = "设备序列号错误~~"
+        resp['msg'] = "need time_id"
         return jsonify(resp)
 
-    id = req['id'] if 'id' in req else 0
-
-    time_info = db.session.query(DeviceTime).\
-                        filter(Device.sn==sn).\
-                        filter(DeviceTime.device_id==Device.id).\
-                        filter(DeviceTime.id==id).\
-                        first()
+    time_info = DeviceTime.query.filter_by(id = time_id).first()
     if not time_info:
         resp['code'] = -1
         resp['msg'] = "当前设备定时任务不存在,请刷新后再试~~"
@@ -300,24 +291,13 @@ def deviceTimeDelete():
     resp = { 'code':200 ,'msg':'ok~','data':{} }
 
     req = request.values
-    sn = req['sn'] if 'sn' in req else ''
-
-    if not sn or len( sn ) < 1:
+    time_id = req['time_id'] if 'time_id' in req else 0
+    if time_id == 0:
         resp['code'] = -1
-        resp['msg'] = "need sn"
+        resp['msg'] = "need time_id"
         return jsonify(resp)
 
-    id = req['id'] if 'id' in req else 0
-    if id == 0:
-        resp['code'] = -1
-        resp['msg'] = "need id"
-        return jsonify(resp)
-
-    time_info = db.session.query(DeviceTime).\
-                        filter(Device.sn==sn).\
-                        filter(DeviceTime.device_id==Device.id).\
-                        filter(DeviceTime.id==id).\
-                        first()
+    time_info = DeviceTime.query.filter_by(id = time_id).first()
     if not time_info:
         resp['code'] = -1
         resp['msg'] = "device time is not exist"
@@ -332,21 +312,15 @@ def deviceTimeDelete():
 def deviceTimeList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
     req = request.values
-    sn = req['sn'] if 'sn' in req else ''
-    if not sn or len( sn ) < 1:
+    tap_id = req['tap_id'] if 'tap_id' in req else 0
+    if tap_id == 0:
         resp['code'] = -1
-        resp['msg'] = "need sn"
-        return jsonify(resp)
-    number = req['number'] if 'number' in req else 0
-    if number == 0:
-        resp['code'] = -1
-        resp['msg'] = "need number"
+        resp['msg'] = "need id"
         return jsonify(resp)
 
     time_list = db.session.query(DeviceTime).\
-                        filter(Device.sn==sn).\
-                        filter(DeviceTime.device_id==Device.id).\
-                        filter(DeviceTime.switch_num==number).\
+                        filter(DeviceTime.device_tap_id==DeviceTap.id).\
+                        filter(DeviceTap.id==tap_id).\
                         all()
     data = []
     for d in time_list:
@@ -356,7 +330,6 @@ def deviceTimeList():
             'alive':d.alive,
             'period':d.period,
             'open_time':d.open_time,
-            'number':d.switch_num,
             'close_time':d.close_time
         })
 
@@ -370,14 +343,14 @@ def deviceTimeList():
 def deviceOperateLogList():
     resp = {'code': 200, 'msg': 'ok~', 'data': {}}
     req = request.values
-    sn = req['sn'] if 'sn' in req else ''
-    if not sn or len( sn ) < 1:
+    id = req['id'] if 'id' in req else 0
+    if id == 0:
         resp['code'] = -1
-        resp['msg'] = "need sn"
+        resp['msg'] = "need id"
         return jsonify(resp)
     log_list = db.session.query(DeviceOperateLog).\
-                        filter(Device.sn==sn).\
-                        filter(DeviceOperateLog.device_id==Device.id).\
+                        filter(DeviceOperateLog.device_tap_id==DeviceTap.id).\
+                        filter(DeviceTap.id == id).\
                         order_by(DeviceOperateLog.time.desc()).\
                         all()
 
@@ -385,7 +358,6 @@ def deviceOperateLogList():
     for l in log_list:
         data.append({
             'msg':l.msg,
-            'source':l.source,
             'date':l.time.strftime("%Y-%m-%d"),
             'time':l.time.strftime("%H:%M"),
             'month':l.time.strftime("%m"),

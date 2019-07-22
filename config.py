@@ -14,20 +14,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class Config(object):
     DEBUG = False
     TESTING = False
-    SERVER_PORT = 5000
     # 打开跨站请求
     CSRF_ENABLED = True
     # SECRET_KEY = 'this-really-needs-to-be-changed'
     SECRET_KEY = 'Sm9obiBTY2hyb20ga2lja3MgYXNz'
     STRIPE_API_KEY = 'SmFjb2IgS2FwbGFuLU1vc3MgaXMgYSBoZXJv'
-
-    #登陆的是root用户，要填上自己的密码，MySQL的默认端口是3306，填上之前创建的数据库名test
-    #注意:  1、使用pymysql时需要mysql+pymysql才行!!!
-    #       2、mysql中首先需要创建test数据库才能用manager.py初始化model中设计的表格
-    SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@dqtttt.cn:3306/tap'
-    #  SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:#Redfalsh192729@localhost:3306/tap'
-    #设置这一项是每次请求结束后都会自动提交数据库中的变动
-    SQLALCHEMY_TRACK_MODIFICATIONS=True
 
     MQTT_BROKER_URL = 'dqtttt.cn'
     MQTT_BROKER_PORT = 1883
@@ -65,6 +56,18 @@ class Config(object):
 
 class ProductionConfig(Config):
     DEBUG = False
+    SERVER_PORT = 80
+    #注意:  1、使用pymysql时需要mysql+pymysql才行!!!
+    mysql = {
+        'DATABASE': 'tap',
+        'PASSWORD': 'p@ssw0rd123',
+        'USER':     'root',
+        'HOSTNAME': 'mysql', # docker用法
+    }
+    SQLALCHEMY_DATABASE_URI='mysql+pymysql://%s:%s@%s/%s'%(mysql['USER'], mysql['PASSWORD'], mysql['HOSTNAME'], mysql['DATABASE'])
+    #  SQLALCHEMY_ECHO = True
+    #  SQLALCHEMY_TRACK_MODIFICATIONS = False
+    #  SQLALCHEMY_ENCODING = "utf8mb4"
 
 
 class StagingConfig(Config):
@@ -75,11 +78,17 @@ class StagingConfig(Config):
 class DevelopmentConfig(Config):
     DEVELOPMENT = True
     DEBUG = True
-    # sqlite
-    # sqlite连接配置路径
-    # SQLALCHEMY_DATABASE_URI= 'sqlite:////tmp/test.db' # sqlite
-
-
+    SERVER_PORT = 5000
+    mysql = {
+        'DATABASE': 'tap',
+        'PASSWORD': 'p@ssw0rd123',
+        'USER':     'root',
+        'HOSTNAME': 'dqtttt.cn:4000',
+    }
+    SQLALCHEMY_DATABASE_URI='mysql+pymysql://%s:%s@%s/%s'%(mysql['USER'], mysql['PASSWORD'], mysql['HOSTNAME'], mysql['DATABASE'])
+    #  SQLALCHEMY_ECHO = True
+    #  SQLALCHEMY_TRACK_MODIFICATIONS = False
+    #  SQLALCHEMY_ENCODING = "utf8mb4"
 
 class TestingConfig(Config):
     TESTING = True

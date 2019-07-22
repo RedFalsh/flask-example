@@ -7,9 +7,12 @@ import requests,json
 
 from app import db
 from app.model import User
-from app.model import Device
 from app.model import Member
+from app.model import Device
+from app.model import DeviceTap
 from app.model import DeviceOperateLog
+from app.model import DeviceOnlineLog
+from app.model import DevicePowerLog
 from app.model import DeviceTime
 
 from app.common.libs.Logging import logger
@@ -18,6 +21,27 @@ from app.common.libs.DeviceService import DeviceService
 from app.common.libs.Helper import getCurrentDate, getFormatDate
 
 from sqlalchemy import desc
+
+
+# 数据库修改方法
+@route_api.route("/tap/sqldatainit",methods = [ "GET","POST" ])
+def tapSqlDataInit():
+    resp = { 'code':20000, 'message':'初始化成功', 'data':{}}
+    device_list = Device.query.all()
+    for device in device_list:
+        tap1 = DeviceTap()
+        tap1.device_id = device.id
+        tap1.alias = device.alias1
+        tap1.status = device.status1
+        db.session.add(tap1)
+
+        tap2 = DeviceTap()
+        tap2.device_id = device.id
+        tap2.alias = device.alias2
+        tap2.status = device.status2
+        db.session.add(tap2)
+    db.session.commit()
+    return jsonify( resp )
 
 
 # 用户界面查询
@@ -94,10 +118,7 @@ def tapPositionList():
 
     return jsonify(resp)
 
-
-
-
-@route_api.route("/tap/operateLog/list",methods = [ "GET","POST" ])
+@route_api.route("/tap/operate/log/list",methods = [ "GET","POST" ])
 def tapOperateLogList():
     resp = { 'code':20000, 'message':'查询成功', 'data':{}}
     req = request.values
@@ -106,27 +127,76 @@ def tapOperateLogList():
     page = int( req['page'] ) if 'page' in req else 0
     limit = int( req['limit'] ) if 'limit' in req else 0
     offset = ( page - 1 ) * limit
-    datetimeStart = req['datetimeStart'][:19].replace('T',' ') if 'datetimeStart' in req else ''
-    datetimeEnd = req['datetimeEnd'][:19].replace('T',' ') if 'datetimeEnd' in req else ''
-    if datetimeStart and not datetimeEnd:
-        datetimeEnd = '3000-01-01 00:00:00'
-    if datetimeEnd and not datetimeStart:
-        datetimeStart = '1970-01-01 00:00:00'
-    if not datetimeEnd and not datetimeStart:
-        datetimeStart = '1970-01-01 00:00:00'
-        datetimeEnd = '3000-01-01 00:00:00'
+    datetimeStart = req['datetimeStart'] if 'datetimeStart' in req else ''
+    datetimeEnd = req['datetimeEnd'] if 'datetimeEnd' in req else ''
+
 
     user_info = UserService.getUserInfo(request)
 
-    query = DeviceOperateLog.query.filter( DeviceOperateLog.device_id == Device.id ).filter( Device.sn == sn )\
+    query = db.session.query(DeviceOperateLog, DeviceTap).filter( DeviceOperateLog.device_id == Device.id ).filter( Device.sn == sn )\
+                                .filter( DeviceOperateLog.device_tap_id == DeviceTap.id)\
                                 .filter( DeviceOperateLog.time.between(datetimeStart, datetimeEnd) )
     total = query.count()
-    log_list = query.order_by(desc(DeviceOperateLog.time)).offset( offset ).limit( limit ).all()
+    tap_log_list = query.order_by(desc(DeviceOperateLog.time)).offset( offset ).limit( limit ).all()
+
+    items = []
+    for log,tap in tap_log_list:
+        items.append({
+            'alias':  tap.alias,
+            'msg':  log.msg,
+            'time':  getFormatDate(log.time)
+        })
+    resp['data']['items'] = items
+    resp['data']['total'] = total
+
+    return jsonify( resp )
+
+
+# 设备上下线记录
+@route_api.route("/tap/online/log/list",methods = [ "GET","POST" ])
+def tapOnlineLogList():
+    resp = { 'code':20000, 'message':'查询成功', 'data':{}}
+    req = request.values
+
+    sn = req['sn'] if 'sn' in req else ''
+    page = int( req['page'] ) if 'page' in req else 0
+    limit = int( req['limit'] ) if 'limit' in req else 0
+    offset = ( page - 1 ) * limit
+
+    query = DeviceOnlineLog.query.filter( DeviceOnlineLog.device_id == Device.id ).filter( Device.sn == sn )
+    total = query.count()
+    log_list = query.order_by(desc(DeviceOnlineLog.time)).offset( offset ).limit( limit ).all()
 
     items = []
     for log in log_list:
         items.append({
-            'msg': log.msg,
+            'online': log.online,
+            'time': getFormatDate(log.time)
+        })
+    resp['data']['items'] = items
+    resp['data']['total'] = total
+
+    return jsonify( resp )
+
+# 设备电量记录
+@route_api.route("/tap/power/log/list",methods = [ "GET","POST" ])
+def tapPowerLogList():
+    resp = { 'code':20000, 'message':'查询成功', 'data':{}}
+    req = request.values
+
+    sn = req['sn'] if 'sn' in req else ''
+    page = int( req['page'] ) if 'page' in req else 0
+    limit = int( req['limit'] ) if 'limit' in req else 0
+    offset = ( page - 1 ) * limit
+
+    query = DevicePowerLog.query.filter( DevicePowerLog.device_id == Device.id ).filter( Device.sn == sn )
+    total = query.count()
+    log_list = query.order_by(desc(DevicePowerLog.time)).offset( offset ).limit( limit ).all()
+
+    items = []
+    for log in log_list:
+        items.append({
+            'power': str(log.power),
             'time': getFormatDate(log.time)
         })
     resp['data']['items'] = items

@@ -6,6 +6,7 @@ from app import  app
 
 from app import db, mqtt
 from app.model import Device
+from app.model import DeviceTap
 from app.model import DeviceOperateLog
 
 from app.common.libs.Logging import logger
@@ -47,6 +48,7 @@ class MqttService():
     def deviceOnline(sn):
         with app.app_context():
             device_info = db.session.query(Device).filter_by( sn=sn ).first()
+            print(device_info)
             if device_info:
                 device_info.online = 1
                 db.session.commit()
@@ -73,73 +75,38 @@ class MqttService():
     @staticmethod
     def deviceUpdateInfo(sn, info):
         with app.app_context():
-            device_info = db.session.query(Device).filter_by( sn=sn ).first()
+            device_info = Device.query.filter_by( sn=sn ).first()
             if device_info:
-                power = info["pow"] if 'pow' in info else -1
-                status1 = info["sta1"] if 'sta1' in info else -1
-                status2 = info["sta2"] if 'sta2' in info else -1
-                if power and status1 and status2:
-                    device_info.status1 = int(status1)
-                    device_info.status2 = int(status2)
-                    device_info.power = decimal.Decimal(float(power))
-                    db.session.commit()
-                    return True
-
-    @staticmethod
-    def deviceChangedStatus_1(sn, status):
-        with app.app_context():
-            device_info = db.session.query(Device).filter_by( sn=sn ).first()
-            if device_info:
-                # 1号阀门状态
-                device_info.status1 = int(status)
-                if status < 3:
-                    # 添加记录
-                    operate_log = DeviceOperateLog()
-                    operate_log.device_id = device_info.id
-                    if status == 0:
-                        operate_log.msg = "关闭"
-                    if status == 1:
-                        operate_log.msg = "开启"
-                    if status == 2:
-                        operate_log.msg = "半开"
-                    operate_log.time = getCurrentDate()
-                    db.session.add(operate_log)
+                taps = DeviceTap.query.filter( DeviceTap.device_id == device_info.id).all()
+                for key, value in info.items():
+                    if key == "pow":
+                        device_info.power = decimal.Decimal(float('%.2f'%value))
+                    if key.startswith("sta"):
+                        number = int(key[3:])
+                        for tap in taps:
+                            if tap.number == number:
+                                tap.status = int(value)
+                                break
                 db.session.commit()
                 return True
 
     @staticmethod
-    def deviceChangedStatus_2(sn, status):
+    def tapChangedStatus(sn, number, status):
         with app.app_context():
-            device_info = db.session.query(Device).filter_by( sn=sn ).first()
-            if device_info:
+            device_info = Device.query.filter_by( sn = sn ).first()
+            tap_info = DeviceTap.query.filter( DeviceTap.device_id == device_info.id)\
+                                    .filter( DeviceTap.number == number).first()
+            if tap_info:
                 # 1号阀门状态
-                device_info.status2 = int(status)
-                if status < 3:
-                    # 添加记录
-                    operate_log = DeviceOperateLog()
-                    operate_log.device_id = device_info.id
-                    if status == 0:
-                        operate_log.msg = "关闭"
-                    if status == 1:
-                        operate_log.msg = "开启"
-                    if status == 2:
-                        operate_log.msg = "半开"
-                    operate_log.time = getCurrentDate()
-                    db.session.add(operate_log)
-                db.session.commit()
-                return True
+                tap_info.status = int(status)
 
-    @staticmethod
-    def deviceOperateLogAdd(sn, msg, source):
-        with app.app_context():
-            device_info = db.session.query(Device).filter_by( sn=sn ).first()
-            if device_info:
                 operate_log = DeviceOperateLog()
                 operate_log.device_id = device_info.id
-                operate_log.msg = msg
-                operate_log.source = source
+                operate_log.device_tap_id = tap_info.id
+                operate_log.operate = int(status)
                 operate_log.time = getCurrentDate()
                 db.session.add(operate_log)
+
                 db.session.commit()
                 return True
 
@@ -150,16 +117,15 @@ class MqttService():
             return device_info.sn
 
     @staticmethod
-    def deviceControlTap(num, device_id, cmd):
+    def deviceControlTap(time, cmd):
         with app.app_context():
-            device_info = db.session.query(Device).filter_by( id=device_id ).first()
-            if device_info:
+            device_info = Device.query.filter_by( id=time.device_id ).first()
+            tap_info = DeviceTap.query.filter_by( id=time.device_tap_id ).first()
+            if device_info and tap_info:
                 if device_info.online == 1:
                     sn = device_info.sn
-                    if num == 1:
-                        mqtt.publish('/tap/%s/sw1'%sn, cmd, 2)
-                    if num == 2:
-                        mqtt.publish('/tap/%s/sw2'%sn, cmd, 2)
+                    number = tap_info.number
+                    mqtt.publish('tap/%s/sw%s'%(sn,number), cmd, 0)
                     return True
 
     @staticmethod
