@@ -34,7 +34,7 @@ PyInstaller==3.4
 PyMySQL==0.9.3
 python-dateutil==2.8.0
 python-editor==1.0.4
-PyYAML==5.1
+PyYAML==5.4
 requests==2.21.0
 schedule==0.6.0
 shellescape==3.4.1
