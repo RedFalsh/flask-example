@@ -7,7 +7,7 @@ configparser==3.7.4
 crypto==1.4.1
 cx-Freeze==5.1.1
 dnspython==1.16.0
-eventlet==0.24.1
+eventlet==0.31.0
 Flask==1.0.2
 Flask-Admin==1.5.3
 Flask-Cors==3.0.7
