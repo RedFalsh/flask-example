@@ -23,7 +23,7 @@ inflect==2.1.0
 itsdangerous==1.1.0
 Jinja2==2.10.1
 macholib==1.11
-Mako==1.0.10
+Mako==1.2.2
 MarkupSafe==1.1.1
 monotonic==1.5
 Naked==0.1.31
